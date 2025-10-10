@@ -805,7 +805,7 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
     });
   }
 });
-/ Employee SLA Violations - SIMPLE VERSION
+// Employee SLA Violations - SIMPLE VERSION
 app.get("/employee/:Eid/sla-violations", async(req, res) => {
   try {
     const Eid = req.params.Eid;
