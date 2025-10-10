@@ -420,9 +420,9 @@ app.get("/complaint/:id", async(req, res) => {
         CreatedAt,
         Address,
         Eid,
-        Deadline,
-        SLAStatus,
-        SLAViolatedAt,
+        deadline,
+       slastatus,
+        slaviolatedat,
         EmployeeProfile:Eid (
           Name,
           DeptId
