@@ -68,7 +68,7 @@ function Navbar() {
                              </Link>
                            
                             
-                                                        <div className="flex items-center space-x-4 ml-8 pl-8 border-l border-gray-200">
+                            <div className="flex items-center space-x-4 ml-4 pl-4 ">
                                 { Login ?
                                 <div className="flex items-center space-x-4">
                                                                         <button
@@ -80,17 +80,13 @@ function Navbar() {
                                                                                 { element: '#stat-0', intro: 'यहाँ प्रमुख आँकड़े दिखते हैं' },
                                                                                 { element: '#service-0', intro: 'शिकायत दर्ज करने के लिए क्लिक करें' },
                                                                             ], () => localStorage.setItem('ns_onboarded_v1','1'))}
-                                                                            className="hidden md:inline-flex mr-2 items-center px-3 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                                                            className="hidden md:inline-flex mr-4 items-center px-3 py-2 rounded-md bg-orange-500 text-white text-sm font-medium hover:bg-orange-600"
                                                                         >
                                                                             Take Tour
                                                                         </button>
-                                    <button className="relative p-3 text-gray-600 hover:text-blue-600 transition-all duration-300 group">
-                                        <div className="absolute inset-0 bg-blue-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                        <FaBell className="h-5 w-5 relative z-10" />
-                                        <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">3</span>
-                                    </button>
-                                    <div className="flex items-center space-x-3 bg-gradient-to-r from-gray-50 to-blue-50 px-3 py-3 rounded-full border border-gray-200 hover:shadow-lg transition-all duration-300">
-                                                                                    <button id="nav-user" onClick={() => setIsOpen(true)} className="px-4 py-2 bg-blue-500 text-white rounded">
+                                    
+                                    <div className="flex items-center space-x-3 bg-gradient-to-r from-gray-50 to-blue-50 px-2 py-2 rounded-full border border-gray-200 hover:shadow-lg transition-all duration-300">
+                                                                                    <button id="nav-user" onClick={() => setIsOpen(true)} className="px-4 py-4 bg-gray-800 text-white rounded-full">
                                                                                         <FaUser className="h-4 w-4 text-white" />
                                                                          </button>
                                     </div>
