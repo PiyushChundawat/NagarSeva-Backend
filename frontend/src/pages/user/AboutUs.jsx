@@ -33,7 +33,7 @@ export default function AboutUs() {
             </div>
 
             <h2 className="text-xl font-semibold mt-6 mb-3">Contact</h2>
-            <p className="text-gray-700">For partnership or support, email: <a className="text-blue-600" href="mailto:hello@nagarseva.com">hello@nagarseva.com</a></p>
+            <p className="text-gray-700">For partnership or support, email: <a className="text-blue-600" href="mailto:hello@nagarseva.example">hello@nagarseva.example</a></p>
           </div>
         </div>
       </Section>
