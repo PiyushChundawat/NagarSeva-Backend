@@ -77,13 +77,7 @@ export default function LandingPage({ name  }) {
     <UserNavBar/>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       <IntroTour
-        steps={[
-          { element: '#nav-home', intro: 'यहाँ से नेविगेट करें।' },
-          { element: '#nav-analytics', intro: 'Analytics देखें।' },
-          { element: '#nav-user', intro: 'यहाँ से आपकी प्रोफ़ाइल खोले।' },
-          { element: '#landing-service-0', intro: 'शिकायत दर्ज करने के लिए क्लिक करें।' },
-          { element: '#landing-service-1', intro: 'अपनी शिकायत ट्रैक करने के लिए यहाँ जाएँ।' },
-        ]}
+        
         start={localStorage.getItem('ns_onboarded_v1') ? false : true}
         onExit={() => localStorage.setItem('ns_onboarded_v1', '1')}
       />
