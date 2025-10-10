@@ -17,7 +17,7 @@ export default function TrackComplaint() {
 
     try {
       // Call your backend API
-      const response = await fetch(`https://nagarseva-backend.onrender.com/${complaintId}`);
+      const response = await fetch(`https://nagarseva-backend.onrender.com/complaint/${complaintId}`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -125,11 +125,11 @@ export default function TrackComplaint() {
         <div className="bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           <div className="p-8 text-center">
             <div className="flex justify-center mb-4">
-              <div className="h-20 w-20 bg-gradient-to-r from-orange-500  to-green rounded-full flex items-center justify-center">
+              <div className="h-20 w-20 bg-orange-500 rounded-full flex items-center justify-center">
                 <FileText className="h-10 w-10 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-green bg-clip-text text-transparent mb-3">
+            <h1 className="text-4xl font-bold bg-green opacity-80 bg-clip-text text-transparent mb-3">
               शिकायत ट्रैक करें
             </h1>
             <p className="text-xl text-gray-600 mb-2">Track Your Complaint</p>

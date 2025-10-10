@@ -62,7 +62,7 @@ function App() {
             } 
           />
           <Route 
-            path="complaint" 
+            path="Complaint" 
             element={
               <ProtectedRoute >
                 <PublicComplaintForm />
