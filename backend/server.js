@@ -926,11 +926,11 @@ app.post("/trigger-sla-check", async(req, res) => {
       }
       
       if (newSLAStatus !== complaint.slastatus) {
-        const{error:updateErr} = await supabase
+        const{ error: updateErr } = await supabase
           .from('complaints')
           .update({
-            SLAStatus: newslastatus,
-            SLAViolatedAt: slaViolatedAt
+            slastatus: newSLAStatus,
+            slaviolatedat: slaViolatedAt
           })
           .eq('Cid', complaint.Cid);
         if (updateErr) {  // ✅ ADDED
@@ -939,6 +939,7 @@ app.post("/trigger-sla-check", async(req, res) => {
     console.log(`✅ Updated complaint ${complaint.Cid}`);
     updatedCount++;
   }
+      }
     }
     
     res.status(200).json({
