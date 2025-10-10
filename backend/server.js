@@ -742,13 +742,12 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
   }
 });
 
+// Manager SLA Violations - SIMPLE VERSION
 app.get("/manager/:Eid/sla-violations", async(req, res) => {
   try {
     const Eid = req.params.Eid;
     
-    console.log("=== MANAGER SLA VIOLATIONS ENDPOINT ===");
-    console.log("Manager Eid:",Eid);
-    
+    // Get manager's department
     const { data: manager } = await supabase
       .from('EmployeeProfile')
       .select('DeptId')
@@ -756,65 +755,33 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
       .single();
     
     if (!manager) {
-      console.log("Manager not found");
       return res.status(404).json({
         success: false,
         message: 'Manager not found'
       });
     }
-    console.log("Manager DeptId:",manager.DeptId);
     
-    const { data: deptData } = await supabase
-      .from('Department')
-      .select('DeptName')
-      .eq('DeptId', manager.DeptId)
-      .single();
-    
-    const departmentName = deptData?.DeptName;
-    
-    const { data: pendingViolations, error: pError} = await supabase
+    // Simple query - just fetch Violated complaints from database
+    const { data: pendingViolations } = await supabase
       .from('complaints')
-      .select(`
-        *,
-        EmployeeProfile:Eid (
-          Name,
-          Eid
-        )
-      `)
-      .eq('Department', departmentName)
+      .select('*')
+      .eq('Department', manager.DeptId)
       .eq('WorkStatus', 'Pending')
-      .eq('slastatus', 'Violated')
-      .order('slaviolatedat', { ascending: true });
-    console.log("✅ Pending Violations:", pendingViolations?.length || 0);  
-    if (pError) console.error("Pending violations error:", pError);  
+      .eq('slastatus', 'Violated');
     
     const { data: inProgressViolations } = await supabase
       .from('complaints')
-      .select(`
-        *,
-        EmployeeProfile:Eid (
-          Name,
-          Eid
-        )
-      `)
-      .eq('Department', departmentName)
+      .select('*')
+      .eq('Department', manager.DeptId)
       .eq('WorkStatus', 'In Progress')
-      .eq('slastatus', 'Violated')
-      .order('slaviolatedat', { ascending: true });
+      .eq('slastatus', 'Violated');
     
     const { data: warnings } = await supabase
       .from('complaints')
-      .select(`
-        *,
-        EmployeeProfile:Eid (
-          Name,
-          Eid
-        )
-      `)
-      .eq('Department', departmentName)
+      .select('*')
+      .eq('Department', manager.DeptId)
       .in('WorkStatus', ['Pending', 'In Progress'])
-      .eq('slastatus', 'Warning')
-      .order('deadline', { ascending: true });
+      .eq('slastatus', 'Warning');
     
     res.status(200).json({
       success: true,
@@ -838,32 +805,26 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
     });
   }
 });
-
+/ Employee SLA Violations - SIMPLE VERSION
 app.get("/employee/:Eid/sla-violations", async(req, res) => {
   try {
     const Eid = req.params.Eid;
     
-    console.log("=== EMPLOYEE SLA VIOLATIONS ENDPOINT ===");
-    
-    const { data: violations, error:vError } = await supabase
+    // Simple query - just fetch Violated complaints assigned to this employee
+    const { data: violations } = await supabase
       .from('complaints')
       .select('*')
       .eq('Eid', Eid)
       .eq('WorkStatus', 'In Progress')
-      .eq('slastatus', 'Violated')
-      .order('slaviolatedat', { ascending: true });
-
-    if(vError) console.error("Violations error:", vError);
+      .eq('slastatus', 'Violated');
     
-    const { data: warnings,error: wError } = await supabase
+    const { data: warnings } = await supabase
       .from('complaints')
       .select('*')
       .eq('Eid', Eid)
       .eq('WorkStatus', 'In Progress')
-      .eq('slastatus', 'Warning')
-      .order('deadline', { ascending: true });
-
-    if(wError) console.error("Warnings error:",wError);
+      .eq('slastatus', 'Warning');
+    
     res.status(200).json({
       success: true,
       data: {
