@@ -573,7 +573,7 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
     const updatePayload = {
       WorkStatus: newStatus,
       slastatus: newStatus === 'Complete' ? 'Completed' : currentComplaint.slastatus,
-      TimeToResolve: timeToResolve
+      timetoresolve: timeToResolve
     };
 
     console.log("=== ATTEMPTING UPDATE ===");
