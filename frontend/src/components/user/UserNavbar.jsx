@@ -15,7 +15,7 @@ function Navbar() {
     };
     const { signOut } = useAuth();
     const navigate = useNavigate();
-    const email="Complain"
+  
     const handleGoToProfile = () => {
     navigate("/myprofile");
   };
@@ -74,11 +74,12 @@ function Navbar() {
                                                                         <button
                                                                             id="take-tour-btn"
                                                                             onClick={() => startTour([
-                                                                                { element: '#nav-home', intro: 'Home पर वापस जाएँ' },
-                                                                                { element: '#nav-analytics', intro: 'Analytics देखें' },
-                                                                                { element: '#nav-user', intro: 'आपकी प्रोफ़ाइल' },
-                                                                                { element: '#stat-0', intro: 'यहाँ प्रमुख आँकड़े दिखते हैं' },
-                                                                                { element: '#service-0', intro: 'शिकायत दर्ज करने के लिए क्लिक करें' },
+                                                                               
+                                                                                { element: '#nav-analytics', intro: 'Analytics | आँकड़े' },
+                                                                                { element: '#nav-user', intro: 'My Profile' },
+                                                                                // { element: '#stat-0', intro: 'यहाँ प्रमुख आँकड़े दिखते हैं' },
+                                                                                { element: '#landing-service-0', intro: 'शिकायत दर्ज करने के लिए क्लिक करें | Register Your Complaints' },
+                                                                                { element: '#landing-service-1', intro: 'अपनी शिकायत ट्रैक करने के लिए यहाँ जाएँ | Track Your Complaints' },
                                                                             ], () => localStorage.setItem('ns_onboarded_v1','1'))}
                                                                             className="hidden md:inline-flex mr-4 items-center px-3 py-2 rounded-md bg-orange-500 text-white text-sm font-medium hover:bg-orange-600"
                                                                         >
@@ -86,19 +87,29 @@ function Navbar() {
                                                                         </button>
                                     
                                     <div className="flex items-center space-x-3 bg-gradient-to-r from-gray-50 to-blue-50 px-2 py-2 rounded-full border border-gray-200 hover:shadow-lg transition-all duration-300">
-                                                                                    <button id="nav-user" onClick={() => setIsOpen(true)} className="px-4 py-4 bg-gray-800 text-white rounded-full">
+                                                <button id="nav-user" onClick={() => setIsOpen(true)} className="px-4 py-4 bg-gray-800 text-white rounded-full">
                                                                                         <FaUser className="h-4 w-4 text-white" />
                                                                          </button>
                                     </div>
-                                    <Dialog open={isOpen} onClose={() => setIsOpen(false)} className="fixed inset-0 flex items-center justify-center bg-black/40">
-                                        <div className="bg-white p-6 rounded-lg shadow-lg">
-                                        <Dialog.Title className="text-lg font-semibold">{email}</Dialog.Title>
-                                           <Button onClick={handleGoToProfile}>My Profile</Button>
-                                             <button onClick={handleLogout}>
-                                                  Logout
+                                    <Dialog open={isOpen} onClose={() => setIsOpen(false)} className="fixed inset-0 bg-black/40 z-50 pointer-events-none overflow-none">
+                                     
+                                        <div className="absolute top-4 right-4 bg-white flex flex-col gap-2 p-6 rounded-lg shadow-lg min-w-[180px] max-w-[90vw] w-auto box-border z-50 pointer-events-auto overflow-hidden">
+                                            {/* Close button (inside panel at top-right) */}
+                                            <button
+                                                aria-label="Close profile menu"
+                                                onClick={() => setIsOpen(false)}
+                                                className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full w-8 h-8 flex items-center justify-center shadow-sm hover:bg-gray-50"
+                                            >
+                                                <span className="text-gray-700 text-lg leading-none">×</span>
                                             </button>
-                                      </div>
-                                     </Dialog>
+
+                                            <Link to={"/myprofile"} className="text-gray-800 hover:text-blue-600">My Profile</Link>
+
+                                            <Button onClick={handleLogout} className="mt-2 bg-orange-500 text-white hover:bg-orange-600">
+                                                Logout
+                                            </Button>
+                                        </div>
+                                    </Dialog>
                                 </div>
                                 :
                                 <div className="space-x-4">
