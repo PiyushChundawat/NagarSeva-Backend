@@ -5,7 +5,7 @@ import Button from "../../components/user/Button.jsx";
 
 
 import CaffieneLogo from '../../assets/Caffiene.png'
-import { Megaphone, AlertTriangle, SearchCheck } from "lucide-react";
+import { FiAlertTriangle, FiUsers, FiThumbsUp, FiClock, FiCheck, FiPhone, FiMail, FiMapPin } from 'react-icons/fi';
 
 import { Link } from "react-router-dom";
 
@@ -30,9 +30,9 @@ export default function LandingPage({ name  }) {
       icon: "water",
       title: "अपनी शिकायत की स्थिति देखें", 
       englishTitle: "Track Your Complaint",
-      description: "नए जल कनेक्शन, डिस्कनेक्शन और गुणवत्ता रिपोर्ट।",
-      englishDesc: "New water connections and quality reports.",
-      features: ["कनेक्शन स्थिति", "गुणवत्ता रिपोर्ट", "आपातकालीन सेवाएं"],
+      description: "नए शिकायत पंजीकरण, स्थिति की जांच और समाधान रिपोर्ट।",
+      englishDesc: "New complaint registration, status checks, and resolution reports.",
+      features: ["शिकायत की स्थिति", "समाधान रिपोर्ट", "सहायता केंद्र"],
       link:"Track"
     }
   ];
@@ -64,9 +64,9 @@ export default function LandingPage({ name  }) {
   ];
 
   const stats = [
-    { number: "50,000+", label: "नागरिक सेवित", englishLabel: "Citizens Served" },
-    { number: "95%", label: "संतुष्टि दर", englishLabel: "Satisfaction Rate" },
-    { number: "24/7", label: "ऑनलाइन सहायता", englishLabel: "Online Support" },
+    { number: "50,000+", label: "नागरिक सेवित", englishLabel: "Citizens Served", icon: FiUsers },
+    { number: "95%", label: "संतुष्टि दर", englishLabel: "Satisfaction Rate", icon: FiThumbsUp },
+    { number: "24/7", label: "ऑनलाइन सहायता", englishLabel: "Online Support", icon: FiClock },
     
   ];
 
@@ -125,7 +125,10 @@ export default function LandingPage({ name  }) {
                         index === 2 ? 'from-orange-600 to-red-600' :
                         'from-purple-600 to-pink-600'
                       } bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-300`}>
-                        {stat.number}
+                        <div className="flex items-center justify-center space-x-3">
+                          {stat.icon && React.createElement(stat.icon, { className: 'w-6 h-6 inline-block mr-2' })}
+                          <span>{stat.number}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -164,7 +167,7 @@ export default function LandingPage({ name  }) {
                 <div className="p-6 pb-4">
                   <div className="flex items-start space-x-4 mb-4">
                     <div className={`relative p-4 rounded-xl bg-green  shadow-lg transform  transition-transform duration-500`}>
-                      <AlertTriangle className="w-6 h-6 text-white"   />
+                      <FiAlertTriangle className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 mb-1">{service.title}</h3>
@@ -184,26 +187,21 @@ export default function LandingPage({ name  }) {
                     {service.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
                         <div className="w-4 h-4 bg-gradient-to-r from-green to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
+                          <FiCheck className="w-2.5 h-2.5 text-white" />
                         </div>
                         <span>{feature}</span>
                       </div>
-                      
-                      
                     ))}
                   </div>
                 </div>
                 
               
                 <div className="p-6 pt-0">
-                
                   <Link id={`landing-service-${index}`} to={`/${service.link}`} className=
                  {`w-full bg-green  text-white px-6 py-3 rounded-xl font-semibold
-                  transition-all duration-300 hover:shadow-lg transform hover:bg-green`}>
-                   {service.link}
-                  
+                  transition-all duration-300 hover:shadow-lg transform hover:bg-green flex items-center justify-center space-x-2`}>
+                   <FiCheck className="w-5 h-5" />
+                   <span>{service.link}</span>
                   </Link>
                 </div>
               </div>
@@ -229,13 +227,12 @@ export default function LandingPage({ name  }) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-8xl mx-auto">
           {features.map((feature, index) => (
             <div key={index} className="flex items-start space-x-4 bg-gray-50 p-5 rounded-lg border-l-4 border-green">
-              <div className="bg-green p-3 rounded-lg flex-shrink-0">
-                
+              <div className="bg-green p-3 rounded-lg flex-shrink-0 text-white flex items-center justify-center">
+                <FiCheck className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-md font-semibold text-gray-900 mb-1">{feature.title}</h3>
                 <h4 className="text-sm font-medium text-blue-900 mb-2">{feature.englishTitle}</h4>
-                
               </div>
             </div>
           ))}
@@ -253,8 +250,8 @@ export default function LandingPage({ name  }) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                
+              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                <FiPhone className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Call Us</h3>
               <p className="text-gray-600">+91-1234-567-890</p>
@@ -262,8 +259,8 @@ export default function LandingPage({ name  }) {
             </div>
 
             <div className="text-center">
-              <div className="bg-green w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-               
+              <div className="bg-green w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-green-700">
+                <FiMail className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Us</h3>
               <p className="text-gray-600">support@nagarseva.gov.in</p>
@@ -271,8 +268,8 @@ export default function LandingPage({ name  }) {
             </div>
 
             <div className="text-center">
-              <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-               
+              <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-700">
+                <FiMapPin className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Visit Us</h3>
               <p className="text-gray-600">Municipal Corporation Office</p>
