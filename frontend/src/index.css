@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', 'Noto Sans Devanagari', system-ui, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f9fafb;
+  }
+
+  .hindi-text {
+    font-family: 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+
+  .badge-pending {
+    @apply bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-in-progress {
+    @apply bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-completed {
+    @apply bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-assigned {
+    @apply bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
+  }
+}
+
+/* Intro.js custom styling */
+.intro-custom-tooltip {
+  border-radius: 12px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.15) !important;
+  background: white !important;
+  color: #0f172a !important; /* slate-900 */
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  max-width: 340px !important;
+}
+.introjs-tooltip-title {
+  display: none; /* hide default title to keep it minimal */
+}
+.intro-custom-highlight {
+  box-shadow: 0 0 0 6px rgba(99,102,241,0.06), 0 6px 18px rgba(2,6,23,0.08) !important;
+  border-radius: 10px !important;
+}
+.introjs-overlay {
+  background-color: rgba(2,6,23,0.45) !important; /* muted dark overlay */
+}
+.introjs-progress {
+  display: none !important; /* hide continuous progress bar */
+}
+.introjs-button {
+  background: transparent !important;
+  color: #111827 !important;
+  border: none !important;
+  padding: 6px 10px !important;
+  font-weight: 600 !important;
+}
+.introjs-done, .introjs-next {
+  background: #4f46e5 !important; /* indigo-600 */
+  color: #fff !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+.introjs-prev {
+  background: transparent !important;
+  color: #374151 !important; /* slate-600 */
+}
+
+/* Theme tweaks: arrows, bullets, border colors */
+.introjs-arrow {
+  border-color: #4f46e5 !important; /* arrow color */
+}
+.introjs-helperLayer {
+  border: 2px solid rgba(79,70,229,0.12) !important; /* soft indigo border */
+  border-radius: 10px !important;
+}
+.introjs-bullets li a {
+  background: #e0e7ff !important; /* light indigo */
+  border: 1px solid #c7d2fe !important;
+}
+.introjs-bullets li a.active {
+  background: #4f46e5 !important; /* indigo */
+  border-color: #3730a3 !important;
+}
+
+/* Step counter shown near the tooltip */
+#intro-step-counter {
+  position: fixed;
+  z-index: 99999;
+  right: 20px;
+  top: 90px;
+  background: rgba(255,255,255,0.95);
+  color: #0f172a;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.08);
+  font-weight: 700;
+  display: none;
+}
+
+#intro-step-counter {
+  min-width: 48px;
+  text-align: center;
+}
