@@ -12,7 +12,7 @@ import autoTable from 'jspdf-autotable';
 import { CSVLink } from 'react-csv';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import { Link } from 'react-router-dom';
 const API = "https://nagarseva-backend.onrender.com";
 
 const Analytics = () => {
@@ -297,13 +297,13 @@ const Analytics = () => {
                 Export CSV
               </CSVLink>
               
-              <button 
-                onClick={fetchAnalyticsData}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <Activity className="w-4 h-4" />
-                Refresh
-              </button>
+            
+<Link
+  to="/"
+  className="inline-flex items-center px-4 py-2  bg-red-500 rounded-lg font-medium hover:bg-red-100 transition-colors"
+>
+   Home
+</Link>
             </div>
           </div>
         </div>
