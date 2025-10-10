@@ -45,45 +45,7 @@ export function startTour(steps = [], onExit) {
   tour.oncomplete(() => onExit && onExit());
   tour.onexit(() => onExit && onExit());
 
-  // update small step counter element on step change
-  tour.onafterchange(function(targetElement) {
-    try {
-      const current = this._currentStep + 1;
-      const total = this._introItems.length;
-      let el = document.getElementById('intro-step-counter');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'intro-step-counter';
-        document.body.appendChild(el);
-      }
-      el.textContent = `${current} / ${total}`;
-      el.style.display = 'block';
-
-      // position the counter near the tooltip if possible
-      const tooltip = document.querySelector('.introjs-tooltip');
-      if (tooltip) {
-        const rect = tooltip.getBoundingClientRect();
-        // place counter at top-right of tooltip
-        el.style.position = 'absolute';
-        el.style.top = (rect.top + window.scrollY + 8) + 'px';
-        el.style.left = (rect.right + window.scrollX + 8) + 'px';
-        el.style.zIndex = 99999;
-      } else {
-        // fallback to fixed position
-        el.style.position = 'fixed';
-        el.style.top = '90px';
-        el.style.right = '20px';
-      }
-
-    } catch (e) {
-      // ignore
-    }
-  });
-  // hide counter on exit
-  tour.onexit(function() {
-    const el = document.getElementById('intro-step-counter');
-    if (el) el.style.display = 'none';
-  });
+  // No floating counter: rely on intro.js bullets/controls for progress
   tour.start();
   return tour;
 }
