@@ -16,7 +16,7 @@ export default function LandingPage({ name  }) {
   const services = [
     
     {
-      icon: "complaint",
+      
       title: "शिकायत दर्ज करें", 
       englishTitle: "File Complaint",
       description: "नागरिक समस्याओं की रिपोर्ट करें और उनकी स्थिति को ट्रैक करें।",
@@ -26,8 +26,7 @@ export default function LandingPage({ name  }) {
     },
   
     {
-    
-      icon: "water",
+   
       title: "अपनी शिकायत की स्थिति देखें", 
       englishTitle: "Track Your Complaint",
       description: "नए शिकायत पंजीकरण, स्थिति की जांच और समाधान रिपोर्ट।",
