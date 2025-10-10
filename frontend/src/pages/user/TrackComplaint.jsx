@@ -106,7 +106,7 @@ export default function TrackComplaint() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green">
+    <div className="min-h-screen bg-gray-100">
     
       {/* Top Flag */}
       <div className="bg-gradient-to-r from-orange-500 via-white to-green">
