@@ -20,6 +20,7 @@ import MyProfile from './pages/user/MyProfile';
 import TrackComplaint from './pages/user/TrackComplaint';
 import ComplaintsHeatmap from './components/ComplaintsHeatmap';
 import PublicComplaintForm from './pages/admin/PublicComplaintForm';
+import AboutUs from './pages/user/AboutUs';
 // Import user dashboard if needed
 // import UserDashboard from './pages/user/UserDashboard';
 
@@ -44,6 +45,7 @@ function App() {
               }/>
               <Route path='heatmap' element={<ComplaintsHeatmap/>}/>
               <Route path='/Track' element={<TrackComplaint/>}/>
+              <Route path='/About' element={<><Navbar/><AboutUs/><Footer/></>} />
          <Route path="/Analytics" element={<Analytics/>} />
           {/* Admin Login - For Manager/Employee */}
           <Route path="/admin/login" element={<AdminLogin />} />
