@@ -504,7 +504,7 @@ app.get("/leaflet", async(req, res) => {
   }
 });
 
-app.patch("/complaint/:Cid/toggle", async(req, res) => {
+app.patch("/complaint/toggle/:Cid", async(req, res) => {
   try {
     console.log("=== PATCH ENDPOINT HIT ===");
     console.log("Raw params:", req.params);
