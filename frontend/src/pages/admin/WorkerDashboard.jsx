@@ -66,8 +66,10 @@ export default function WorkerDashboard() {
     completedComplaints: 0
   });
   const [slaData, setSLAData] = useState({
-    violations: [],
-    warnings: [],
+    data: {
+      violations: [],
+      warnings: []
+    },
     counts: { violations: 0, warnings: 0, total: 0 }
   });
 
@@ -150,7 +152,15 @@ export default function WorkerDashboard() {
         console.log("📅 Fetching SLA data for employee:", userProfile.Eid);
         const slaViolations = await fetchSLAViolations(userProfile.Eid);
         console.log("✅ SLA Data:", slaViolations);
-        setSLAData(slaViolations);
+        
+        // Store the full response which has the nested structure
+        setSLAData({
+          data: {
+            violations: slaViolations.data?.violations || [],
+            warnings: slaViolations.data?.warnings || []
+          },
+          counts: slaViolations.counts || { violations: 0, warnings: 0, total: 0 }
+        });
 
       } catch (apiError) {
         console.error("❌ API Error:", apiError);
@@ -211,9 +221,9 @@ export default function WorkerDashboard() {
       case 'completed':
         return complaints.filter(complaint => complaint.WorkStatus === 'Complete');
       case 'slaviolations':
-        return slaData.violations || [];
+        return slaData.data?.violations || [];
       case 'slawarnings':
-        return slaData.warnings || [];
+        return slaData.data?.warnings || [];
       default:
         return complaints;
     }
@@ -295,8 +305,8 @@ export default function WorkerDashboard() {
   const tabsData = [
     { id: 'inprogress', name: 'In Progress', count: stats.inProgressComplaints },
     { id: 'completed', name: 'Completed', count: stats.completedComplaints },
-    { id: 'slaviolations', name: 'SLA Violations', count: slaData.counts.violations, highlight: true },
-    { id: 'slawarnings', name: 'SLA Warnings', count: slaData.counts.warnings, highlight: true }
+    { id: 'slaviolations', name: 'SLA Violations', count: slaData?.counts?.violations || 0, highlight: true },
+    { id: 'slawarnings', name: 'SLA Warnings', count: slaData?.counts?.warnings || 0, highlight: true }
   ];
 
   if (loading && !profile) {
@@ -343,7 +353,7 @@ export default function WorkerDashboard() {
                   activeTab === tab.id
                     ? 'bg-orange-400 text-white'
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                } ${tab.highlight && (slaData.counts.violations > 0 || slaData.counts.warnings > 0) ? 'border-l-4 border-red-500' : ''}`}
+                } ${tab.highlight && (slaData?.counts?.violations > 0 || slaData?.counts?.warnings > 0) ? 'border-l-4 border-red-500' : ''}`}
               >
                 <span className="flex-grow text-left">{tab.name}</span>
                 {tab.count !== null && (
@@ -450,17 +460,17 @@ export default function WorkerDashboard() {
                 </div>
               </div>
 
-              <div className={`overflow-hidden shadow-sm rounded-lg border ${slaData.counts.total > 0 ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+              <div className={`overflow-hidden shadow-sm rounded-lg border ${slaData?.counts?.total > 0 ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
                 <div className="p-6">
                   <div className="flex items-center">
-                    <div className={`flex-shrink-0 rounded-md p-3 ${slaData.counts.total > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
-                      <svg className={`h-6 w-6 ${slaData.counts.total > 0 ? 'text-red-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className={`flex-shrink-0 rounded-md p-3 ${slaData?.counts?.total > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
+                      <svg className={`h-6 w-6 ${slaData?.counts?.total > 0 ? 'text-red-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-2v-2m0 " />
                       </svg>
                     </div>
                     <div className="ml-4">
                       <p className="text-md font-medium text-gray-500">SLA Issues</p>
-                      <p className={`text-2xl font-bold ${slaData.counts.total > 0 ? 'text-red-600' : 'text-gray-900'}`}>{slaData.counts.total}</p>
+                      <p className={`text-2xl font-bold ${slaData?.counts?.total > 0 ? 'text-red-600' : 'text-gray-900'}`}>{slaData?.counts?.total || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -521,14 +531,14 @@ export default function WorkerDashboard() {
                               <span className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(complaint.WorkStatus)}`}>
                                 {complaint.WorkStatus}
                               </span>
-                              {(activeTab === 'slaviolations' || activeTab === 'slawarnings' || complaint.SLAStatus) && (
-                                <span className={`px-3 py-1 text-xs rounded-full font-medium ${getSLAStatusColor(complaint.SLAStatus)}`}>
-                                  SLA: {complaint.SLAStatus}
+                              {(activeTab === 'slaviolations' || activeTab === 'slawarnings' || complaint.slastatus) && (
+                                <span className={`px-3 py-1 text-xs rounded-full font-medium ${getSLAStatusColor(complaint.slastatus)}`}>
+                                  SLA: {complaint.slastatus}
                                 </span>
                               )}
-                              {complaint.Deadline && (
+                              {complaint.deadline && (
                                 <div className="text-xs font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800">
-                                  {formatDeadline(complaint.Deadline)}
+                                  {formatDeadline(complaint.deadline)}
                                 </div>
                               )}
                               <p className="text-xs text-gray-500">
