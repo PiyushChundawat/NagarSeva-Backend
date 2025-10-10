@@ -79,12 +79,18 @@ export default function MyProfile() {
 
   const totalComplaints = Array.isArray(complaints) ? complaints.length : 0;
   
-  // Group complaints by WorkStatus (matching your API response structure)
+// NAYA CODE (CORRECT)
   const complaintsByStatus = (Array.isArray(complaints) ? complaints : []).reduce((acc, c) => {
-    const status = c?.WorkStatus?.toLowerCase() ?? 'unknown';
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {});
+  const status = c?.WorkStatus ?? 'unknown';
+  // Normalize status to match our keys
+  let normalizedStatus = 'unknown';
+  if (status === 'Pending') normalizedStatus = 'pending';
+  else if (status === 'In Progress') normalizedStatus = 'in-progress';
+  else if (status === 'Complete') normalizedStatus = 'complete';
+  
+  acc[normalizedStatus] = (acc[normalizedStatus] || 0) + 1;
+  return acc;
+}, {});
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -166,7 +172,7 @@ export default function MyProfile() {
               </div>
             </div>
             
-            <div className="p-4 border-2 border-gray-200 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
+            {/* <div className="p-4 border-2 border-gray-200 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-600 font-medium uppercase">Other</p>
@@ -176,7 +182,7 @@ export default function MyProfile() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Complaints List */}
@@ -217,10 +223,12 @@ export default function MyProfile() {
                           </h5>
                           <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                             c.WorkStatus === 'Complete' 
-                              ? 'bg-green-100 text-green-800' 
-                              : c.WorkStatus === 'Pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
+                            ? 'bg-green-100 text-green-800' 
+                            : c.WorkStatus === 'Pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : c.WorkStatus === 'In Progress'
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-gray-100 text-gray-800'
                           }`}>
                             {c.WorkStatus || 'Unknown'}
                           </span>
