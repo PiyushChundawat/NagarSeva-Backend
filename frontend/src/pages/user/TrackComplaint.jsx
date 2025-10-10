@@ -97,11 +97,10 @@ export default function TrackComplaint() {
 
   const getDepartmentName = (deptId) => {
     const departments = {
-      1: { name: 'Road Maintenance', hindi: 'सड़क रखरखाव' },
-      2: { name: 'Water Supply', hindi: 'जल आपूर्ति' },
-      3: { name: 'Waste Management', hindi: 'कचरा प्रबंधन' },
-      4: { name: 'Electricity', hindi: 'बिजली' },
-      5: { name: 'Sanitation', hindi: 'स्वच्छता' }
+     'DPT_W': { name: 'Water Supply', hindi: 'जल आपूर्ति' },
+    'DPT_E': { name: 'Electrical', hindi: 'बिजली' },
+    'DPT_PI': { name: 'Public Infrastructure', hindi: 'सार्वजनिक बुनियादी ढांचा' },
+    'DPT_C': { name: 'Cleanliness', hindi: 'स्वच्छता' }
     };
     return departments[deptId] || { name: 'Unknown', hindi: 'अज्ञात' };
   };
