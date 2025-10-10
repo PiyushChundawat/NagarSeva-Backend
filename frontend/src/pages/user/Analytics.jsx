@@ -1,551 +1,1591 @@
+import express from "express";
+import { createClient } from '@supabase/supabase-js';
+import cors from "cors";
+import dotenv from 'dotenv';
 
-import { useState, useEffect } from 'react';
-import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import { 
-  Activity, CheckCircle, 
-  Clock, AlertCircle, BarChart3, Download
-} from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { CSVLink } from 'react-csv';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { Link } from 'react-router-dom';
-const API = "https://nagarseva-backend.onrender.com";
+dotenv.config();
 
-const Analytics = () => {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedView, setSelectedView] = useState('overview');
-  const [error, setError] = useState(null);
+const app = express();
+const port = process.env.PORT || 3000;
 
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, []);
+app.use(cors());
 
-  const fetchAnalyticsData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`${API}/analytics`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch analytics data');
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to fetch analytics');
-      }
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-      const transformedData = {
-        overview: {
-          totalComplaints: result.total.complaints || 0,
-          pendingComplaints: result.total.pending || 0,
-          inProgressComplaints: result.total.inProgress || 0,
-          completedComplaints: result.total.complete || 0,
-          completionRate: result.total.complaints > 0 
-            ? Math.round((result.total.complete / result.total.complaints) * 100) 
-            : 0
-        },
-        
-        departmentStats: [
-          {
-            id: 'water',
-            name: 'Water',
-            totalComplaints: result.byDepartment.water.total || 0,
-            pending: result.byDepartment.water.pending || 0,
-            inProgress: result.byDepartment.water.inProgress || 0,
-            completed: result.byDepartment.water.complete || 0
-          },
-          {
-            id: 'electricity',
-            name: 'Electricity',
-            totalComplaints: result.byDepartment.electricity.total || 0,
-            pending: result.byDepartment.electricity.pending || 0,
-            inProgress: result.byDepartment.electricity.inProgress || 0,
-            completed: result.byDepartment.electricity.complete || 0
-          },
-          {
-            id: 'publicInfra',
-            name: 'Public Infrastructure',
-            totalComplaints: result.byDepartment.publicInfrastructure.total || 0,
-            pending: result.byDepartment.publicInfrastructure.pending || 0,
-            inProgress: result.byDepartment.publicInfrastructure.inProgress || 0,
-            completed: result.byDepartment.publicInfrastructure.complete || 0
-          },
-          {
-            id: 'cleanliness',
-            name: 'Cleanliness',
-            totalComplaints: result.byDepartment.cleanliness.total || 0,
-            pending: result.byDepartment.cleanliness.pending || 0,
-            inProgress: result.byDepartment.cleanliness.inProgress || 0,
-            completed: result.byDepartment.cleanliness.complete || 0
-          }
-        ],
-        
-        statusDistribution: [
-          {
-            name: 'Pending',
-            value: result.total.pending || 0,
-            color: '#f59e0b'
-          },
-          {
-            name: 'In Progress',
-            value: result.total.inProgress || 0,
-            color: '#3b82f6'
-          },
-          {
-            name: 'Completed',
-            value: result.total.complete || 0,
-            color: '#10b981'
-          }
-        ],
-        
-        departmentDistribution: [
-          {
-            name: 'Water',
-            value: result.byDepartment.water.total || 0
-          },
-          {
-            name: 'Electricity',
-            value: result.byDepartment.electricity.total || 0
-          },
-          {
-            name: 'Public Infrastructure',
-            value: result.byDepartment.publicInfrastructure.total || 0
-          },
-          {
-            name: 'Cleanliness',
-            value: result.byDepartment.cleanliness.total || 0
-          }
-        ],
-        
-        priorityStats: {
-          high: Math.floor(result.total.pending * 0.3),
-          medium: Math.floor(result.total.pending * 0.5),
-          low: Math.floor(result.total.pending * 0.2)
-        }
-      };
+if (!supabaseUrl || !supabaseKey) {
+  console.error("❌ Missing Supabase credentials in environment variables");
+  process.exit(1);
+}
 
-      setAnalytics(transformedData);
-      
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-      toast.error('Failed to load analytics data. Please try again.');
-      setError(error.message);
-    } finally {
-      setLoading(false);
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: 'Welcome to API with SLA Tracking',
+    timestamp: new Date().toISOString()
+  });
+});
+
+async function calculateDeadline(department, createdAt) {
+  try {
+    const { data: deptData, error } = await supabase
+      .from('Department')
+      .select('SLAHours')
+      .eq('DeptName', department)
+      .single();
+
+    if (error || !deptData) {
+      console.warn(`⚠️ Department ${department} not found, using default 48 hours`);
+      const slaHours = 48;
+      const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
+      return deadline.toISOString();
     }
-  };
 
-  const handleExportPdf = () => {
-    if (!analytics) return;
+    const slaHours = deptData.SLAHours || 48;
+    const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
+    
+    console.log(`📅 Calculated deadline: ${deadline.toISOString()} (${slaHours} hours from ${createdAt})`);
+    
+    return deadline.toISOString();
+  } catch (err) {
+    console.error("Error calculating deadline:", err);
+    const deadline = new Date(new Date(createdAt).getTime() + 48 * 60 * 60 * 1000);
+    return deadline.toISOString();
+  }
+}
 
-    const doc = new jsPDF();
+app.post("/complaint", async (req, res) => {
+  try {
+    const {
+      Name,
+      Phone,
+      Address,
+      Description,
+      Department,
+      Latitude,
+      Longitude,
+      photoData,
+      userId
+    } = req.body;
+
+    console.log("📝 Received complaint submission");
+    console.log("Department:", Department);
+    console.log("Has photo:", !!photoData);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User authentication required. Please login to submit a complaint."
+      });
+    }
+
+    if (!Department) {
+      return res.status(400).json({
+        success: false,
+        message: "Department is required."
+      });
+    }
+
+    let photoUrl = null;
+   
+    if (photoData) {
+      try {
+        console.log("📸 Processing image upload...");
+        
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        const fileName = `complaint_${timestamp}_${randomStr}.jpg`;
+        const filePath = `complaints/${fileName}`;
+       
+        let base64Data = photoData;
+        let contentType = 'image/jpeg';
+        
+        if (photoData.startsWith('data:image')) {
+          const mimeMatch = photoData.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+          if (mimeMatch && mimeMatch[1]) {
+            contentType = mimeMatch[1];
+          }
+          base64Data = photoData.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
+        }
+        
+        const fileBuffer = Buffer.from(base64Data, 'base64');
+        
+        console.log("📊 Upload details:", {
+          fileName,
+          size: `${(fileBuffer.length / 1024).toFixed(2)} KB`,
+          contentType
+        });
+       
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('complaint-images')
+          .upload(filePath, fileBuffer, {
+            contentType: contentType,
+            cacheControl: '3600',
+            upsert: false
+          });
+       
+        if (uploadError) {
+          console.error("❌ Upload error:", uploadError);
+          throw uploadError;
+        }
+       
+        console.log("✅ Upload successful");
+       
+        const { data: urlData } = supabase
+          .storage
+          .from('complaint-images')
+          .getPublicUrl(filePath);
+       
+        photoUrl = urlData.publicUrl;
+        console.log("🔗 Photo URL:", photoUrl);
+        
+      } catch (photoError) {
+        console.error("❌ Photo error:", photoError.message);
+        photoUrl = null;
+      }
+    }
+
+    const createdAt = new Date().toISOString();
+    const deadline = await calculateDeadline(Department, createdAt);
+
+    let assignedEid = null;
+    let workStatus = 'Pending';
+    let assignmentMessage = "Complaint submitted successfully";
+
+    console.log("🔍 Finding employees in department:", Department);
     
-    doc.setFontSize(18);
-    doc.text("Analytics Report", 14, 20);
-    
-    doc.setFontSize(14);
-    doc.text("Overall Statistics", 14, 35);
-    
-    const overallData = [
-      ['Total Complaints', analytics.overview.totalComplaints],
-      ['Pending Complaints', analytics.overview.pendingComplaints],
-      ['In Progress Complaints', analytics.overview.inProgressComplaints],
-      ['Completed Complaints', analytics.overview.completedComplaints],
-      ['Completion Rate', `${analytics.overview.completionRate}%`]
-    ];
-    
-    autoTable(doc, {
-      startY: 40,
-      head: [['Statistic', 'Value']],
-      body: overallData,
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 245] }
+    const { data: employees, error: employeeError } = await supabase
+      .from('EmployeeProfile')
+      .select('Eid, AssignCid, AssignHistory, DeptId, Name')
+      .eq('DeptId', Department);
+
+    console.log("Query result:", { 
+      employees: employees?.length || 0, 
+      error: employeeError?.message || 'none' 
     });
-    
-    doc.setFontSize(14);
-    doc.text("Department-wise Statistics", 14, doc.lastAutoTable.finalY + 15);
-    
-    const departmentData = analytics.departmentStats.map(dept => [
-      dept.name,
-      dept.totalComplaints,
-      dept.pending,
-      dept.inProgress,
-      dept.completed
-    ]);
-    
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 20,
-      head: [['Department', 'Total', 'Pending', 'In Progress', 'Completed']],
-      body: departmentData,
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 245] }
-    });
-    
-    doc.save('analytics-report.pdf');
-  };
 
-  const prepareCSVData = () => {
-    if (!analytics) return [];
-    
-    const csvData = [
-      { category: 'Overall Statistics', statistic: 'Total Complaints', value: analytics.overview.totalComplaints },
-      { category: 'Overall Statistics', statistic: 'Pending Complaints', value: analytics.overview.pendingComplaints },
-      { category: 'Overall Statistics', statistic: 'In Progress Complaints', value: analytics.overview.inProgressComplaints },
-      { category: 'Overall Statistics', statistic: 'Completed Complaints', value: analytics.overview.completedComplaints },
-      { category: 'Overall Statistics', statistic: 'Completion Rate', value: `${analytics.overview.completionRate}%` },
-      { category: '', statistic: '', value: '' },
+    if (employeeError) {
+      console.error("❌ Employee query error:", employeeError);
+    }
+
+    if (!employeeError && employees && employees.length > 0) {
+      console.log("👥 Found", employees.length, "employees");
       
-      ...analytics.departmentStats.flatMap(dept => [
-        { category: `${dept.name} Department`, statistic: 'Total Complaints', value: dept.totalComplaints },
-        { category: `${dept.name} Department`, statistic: 'Pending Complaints', value: dept.pending },
-        { category: `${dept.name} Department`, statistic: 'In Progress Complaints', value: dept.inProgress },
-        { category: `${dept.name} Department`, statistic: 'Completed Complaints', value: dept.completed },
-        { category: '', statistic: '', value: '' }
+      let selectedEmployee = null;
+      let minTasks = 5;
+
+      for (const employee of employees) {
+        let currentTasks = 0;
+        
+        if (employee.AssignCid) {
+          if (Array.isArray(employee.AssignCid)) {
+            currentTasks = employee.AssignCid.length;
+          } else if (typeof employee.AssignCid === 'string') {
+            currentTasks = employee.AssignCid.split(',').filter(id => id.trim()).length;
+          }
+        }
+
+        console.log(`Employee ${employee.Eid}: ${currentTasks} tasks`);
+
+        if (currentTasks < minTasks) {
+          minTasks = currentTasks;
+          selectedEmployee = employee;
+        }
+      }
+
+      if (selectedEmployee) {
+        assignedEid = selectedEmployee.Eid;
+        workStatus = 'In Progress';
+        assignmentMessage = "Complaint submitted and assigned successfully";
+        console.log("✅ Selected employee:", assignedEid, "with", minTasks, "tasks");
+      } else {
+        console.log("⚠️ No employee selected - all have 5+ tasks");
+      }
+    } else {
+      console.log("⚠️ No employees found for department:", Department);
+    }
+
+    console.log("💾 Saving complaint with SLA tracking...");
+    const { data: complaintData, error: complaintError } = await supabase
+      .from('complaints')
+      .insert([
+        {
+          Name,
+          Phone,
+          Address,
+          Department,
+          Description,
+          PhotoUrl: photoUrl,
+          Latitude,
+          Longitude,
+          userId,
+          Eid: assignedEid,
+          WorkStatus: workStatus,
+          CreatedAt: createdAt,
+          deadline: deadline,
+          slastatus: 'On Track'
+        }
       ])
-    ];
+      .select()
+      .single();
+   
+    if (complaintError) {
+      console.error("❌ Database error:", complaintError);
+      return res.status(500).json({
+        success: false,
+        message: "Error submitting complaint",
+        error: complaintError.message
+      });
+    }
+
+    console.log("✅ Complaint saved with Cid:", complaintData.Cid);
+    console.log("📅 Deadline set to:", deadline);
+
+    if (assignedEid && complaintData && complaintData.Cid) {
+      console.log("🔄 Updating employee assignment...");
+      
+      const selectedEmployee = employees.find(emp => emp.Eid === assignedEid);
+      
+      if (selectedEmployee) {
+        let updatedAssignCid;
+        if (!selectedEmployee.AssignCid) {
+          updatedAssignCid = [complaintData.Cid];
+        } else if (Array.isArray(selectedEmployee.AssignCid)) {
+          updatedAssignCid = [...selectedEmployee.AssignCid, complaintData.Cid];
+        } else if (typeof selectedEmployee.AssignCid === 'string') {
+          const existingIds = selectedEmployee.AssignCid
+            .split(',')
+            .filter(id => id.trim())
+            .map(id => parseInt(id));
+          updatedAssignCid = [...existingIds, complaintData.Cid];
+        } else {
+          updatedAssignCid = [complaintData.Cid];
+        }
+
+        const historyEntry = {
+          Cid: complaintData.Cid,
+          assignedAt: new Date().toISOString(),
+          status: 'Assigned'
+        };
+
+        let updatedHistory;
+        if (!selectedEmployee.AssignHistory) {
+          updatedHistory = [historyEntry];
+        } else if (Array.isArray(selectedEmployee.AssignHistory)) {
+          updatedHistory = [...selectedEmployee.AssignHistory, historyEntry];
+        } else if (typeof selectedEmployee.AssignHistory === 'string') {
+          try {
+            const existingHistory = JSON.parse(selectedEmployee.AssignHistory);
+            updatedHistory = Array.isArray(existingHistory) 
+              ? [...existingHistory, historyEntry]
+              : [historyEntry];
+          } catch {
+            updatedHistory = [historyEntry];
+          }
+        } else {
+          updatedHistory = [historyEntry];
+        }
+
+        const { data: updateData, error: updateError } = await supabase
+          .from('EmployeeProfile')
+          .update({ 
+            AssignCid: updatedAssignCid,
+            AssignHistory: updatedHistory
+          })
+          .eq('Eid', assignedEid)
+          .select();
+
+        if (updateError) {
+          console.error("❌ Employee update error:", updateError);
+        } else {
+          console.log("✅ Employee updated:", updateData);
+        }
+      }
+    }
+   
+    console.log("🎉 Success!");
     
-    return csvData;
-  };
-
-  const csvHeaders = [
-    { label: 'Category', key: 'category' },
-    { label: 'Statistic', key: 'statistic' },
-    { label: 'Value', key: 'value' }
-  ];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading Analytics...</p>
-        </div>
-      </div>
-    );
+    res.status(200).json({
+      success: true,
+      message: assignmentMessage,
+      data: {
+        Cid: complaintData.Cid,
+        photoUrl: photoUrl,
+        assignedTo: assignedEid,
+        status: workStatus,
+        deadline: deadline,
+        slaStatus: 'On Track'
+      }
+    });  
+  } catch(err) {
+    console.error("❌ ERROR:", err.message);
+    console.error("Stack:", err.stack);
+    res.status(500).json({
+      success: false,
+      message: "Error submitting complaint",
+      error: err.message
+    });
   }
+});
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-          <p className="text-xl text-gray-800 font-medium">Error loading analytics</p>
-          <p className="text-gray-600 mt-2">{error}</p>
-          <button 
-            onClick={fetchAnalyticsData}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+app.get("/complaints/user/:userId", async(req, res) => {
+  try {
+    console.log("=== USER COMPLAINTS ENDPOINT HIT ===");
+    const userId = req.params.userId;
+   
+    console.log("🔍 Fetching complaints for user:", userId);
+
+    if (!userId || userId.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const { data, error } = await supabase 
+      .from('complaints')
+      .select('*')
+      .eq('userId', userId)
+      .order('CreatedAt', { ascending: false });
+
+    if (error) {
+      console.error("❌ Database error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    console.log(`✅ Found ${data.length} complaints for user ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${data.length} complaints.`,
+      data: data
+    });
+  } catch(err) {
+    console.error("❌ Server error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
- 
-  const { overview, departmentStats, statusDistribution, departmentDistribution, priorityStats } = analytics;
+});
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
+app.get("/complaint/:id", async(req, res) => {
+  try {
+    console.log("=== COMPLAINT ENDPOINT HIT ===");
+   
+    let cidString = req.params.id || '';
+    if (cidString.startsWith(':')) {
+      cidString = cidString.substring(1);
+    }
+   
+    const Cid = parseInt(cidString, 10);
+   
+    if (isNaN(Cid) || Cid <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid complaint ID. Must be a positive number.'
+      });
+    }
+   
+    const { data, error } = await supabase
+      .from('complaints')
+      .select(`
+        WorkStatus,
+        CreatedAt,
+        Address,
+        Eid,
+        deadline,
+
+       slastatus,
+
+        slaviolatedat,
+        EmployeeProfile:Eid (
+          Name,
+          DeptId
+        )
+      `)
+      .eq('Cid', Cid)
+      .single();
+   
+    if (error) {
+      console.error("Database error:", error);
+      const notFoundCodes = new Set(['PGRST116', 'PGRST106']);
+      if (notFoundCodes.has(error.code)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Complaint not found.'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    const responseData = {
+      WorkStatus: data.WorkStatus,
+      CreatedAt: data.CreatedAt,
+      Address: data.Address,
+      Eid: data.Eid,
+      Deadline: data.deadline,
+      SLAStatus: data.slastatus,
+      SLAViolatedAt: data.slaviolatedat,
+      EmployeeName: data.EmployeeProfile?.Name || null,
+      Department: data.EmployeeProfile?.DeptId || null
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Complaint found successfully',
+      data: responseData
+    });
+  } catch(err) {
+    console.error("Catch block error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/leaflet", async(req, res) => {
+  try {
+    console.log("=== LEAFLET ENDPOINT HIT ===");
+
+    const { data, error } = await supabase
+      .from('complaints')
+      .select('Latitude, Longitude, Cid')
+      .eq('WorkStatus', 'Pending')
+      .not('Latitude', 'is', null)
+      .not('Longitude', 'is', null);
+
+    if (error) {
+      console.error("Database error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    const validCoordinates = data.filter(item => 
+      typeof item.Latitude === 'number' && 
+      typeof item.Longitude === 'number' &&
+      item.Latitude >= -90 && item.Latitude <= 90 &&
+      item.Longitude >= -180 && item.Longitude <= 180
+    );
+
+    const heatmapData = validCoordinates.map(item => [
+      item.Latitude,
+      item.Longitude
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${validCoordinates.length} pending complaints with coordinates`,
+      count: validCoordinates.length,
+      data: heatmapData,
+      details: validCoordinates
+    });
+  } catch(err) {
+    console.error("Catch block error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.patch("/complaint/toggle/:Cid", async(req, res) => {
+  try {
+    console.log("=== PATCH ENDPOINT HIT ===");
+    console.log("Raw params:", req.params);
+    console.log("Full URL:", req.originalUrl);
+   
+    let cidString = req.params.Cid || '';
+    console.log("Original cidString:", cidString, "Type:", typeof cidString);
+    
+    if (cidString.startsWith(':')) {
+      cidString = cidString.substring(1);
+      console.log("Removed colon, new cidString:", cidString);
+    }
+   
+    const Cid = parseInt(cidString, 10);
+    console.log("Parsed Cid:", Cid, "Is valid:", !isNaN(Cid) && Cid > 0);
+   
+    if (isNaN(Cid) || Cid <= 0) {
+      console.error("Invalid Cid validation failed");
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid complaint ID. Must be a positive number.',
+        receivedValue: cidString
+      });
+    }
+
+    console.log("=== FETCHING CURRENT COMPLAINT ===");
+    console.log("Looking for complaint with Cid:", Cid);
+   
+    const { data: currentComplaint, error: fetchError } = await supabase
+      .from('complaints')
+      .select('WorkStatus, Eid, Department, CreatedAt, deadline, slastatus')
+      .eq('Cid', Cid)
+      .single();
+   
+    console.log("Fetch result:", currentComplaint);
+    console.log("Fetch error:", fetchError);
+   
+    if (fetchError || !currentComplaint) {
+      console.error("Complaint not found:", fetchError);
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found',
+        error: fetchError?.message,
+        cid: Cid
+      });
+    }
+
+    console.log("=== CURRENT COMPLAINT DATA ===");
+    console.log("Current WorkStatus:", currentComplaint.WorkStatus);
+    console.log("Current slastatus:", currentComplaint.slastatus);
+   
+    const newStatus = currentComplaint.WorkStatus === 'In Progress' ? 'Complete' : 'In Progress';
+    console.log("New status will be:", newStatus);
+    
+    let timeToResolve = null;
+    if (newStatus === 'Complete') {
+      const completedAt = new Date();
+      const createdAt = new Date(currentComplaint.CreatedAt);
+      const diffMs = completedAt - createdAt;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      timeToResolve = `${diffHours} hours ${diffMins} minutes`;
+      console.log("Time to resolve:", timeToResolve);
+    }
+
+    const updatePayload = {
+      WorkStatus: newStatus,
+      slastatus: newStatus === 'Complete' ? 'Completed' : currentComplaint.slastatus,
+      timetoresolve: timeToResolve
+    };
+
+    console.log("=== ATTEMPTING UPDATE ===");
+    console.log("Update payload:", JSON.stringify(updatePayload, null, 2));
+    console.log("Updating complaint Cid:", Cid);
+   
+    const { data: updatedComplaint, error: updateError } = await supabase
+      .from('complaints')
+      .update(updatePayload)
+      .eq('Cid', Cid)
+      .select()
+      .single();
+   
+    console.log("=== UPDATE RESULT ===");
+    console.log("Updated complaint data:", updatedComplaint);
+    console.log("Update error:", updateError);
+   
+    if (updateError) {
+      console.error("=== DATABASE UPDATE ERROR ===");
+      console.error("Error object:", JSON.stringify(updateError, null, 2));
+      console.error("Error message:", updateError.message);
+      console.error("Error details:", updateError.details);
+      console.error("Error hint:", updateError.hint);
+      console.error("Error code:", updateError.code);
       
-      <div className="bg-white shadow-md border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <BarChart3 className="w-8 h-8 text-blue-600" />
-                Analytics Dashboard
-              </h1>
-              <p className="text-gray-600 mt-1">Comprehensive insights and statistics</p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={handleExportPdf}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export PDF
-              </button>
-              
-              <CSVLink
-                data={prepareCSVData()}
-                headers={csvHeaders}
-                filename="analytics-report.csv"
-                className="px-4 py-2 bg-green opacity-80 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </CSVLink>
-              
-            
-<Link
-  to="/"
-  className="inline-flex items-center px-4 py-2  bg-red-500 rounded-lg font-medium hover:bg-red-100 transition-colors"
->
-   Home
-</Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      return res.status(500).json({
+        success: false,
+        message: 'Complaint Update Error.',
+        error: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        code: updateError.code,
+        payload: updatePayload
+      });
+    }
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setSelectedView('overview')}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              selectedView === 'overview'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setSelectedView('departments')}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              selectedView === 'departments'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Departments
-          </button>
-        </div>
+    console.log("✅ Complaint updated successfully");
 
-        {selectedView === 'overview' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <StatCard
-                title="Total Complaints"
-                value={overview.totalComplaints}
-                icon={<Activity className="w-8 h-8" />}
-                color="bg-blue-500"
-                trend={`${overview.totalComplaints} total`}
-              />
-              <StatCard
-                title="Pending"
-                value={overview.pendingComplaints}
-                icon={<Clock className="w-8 h-8" />}
-                color="bg-yellow-500"
-                trend={`${overview.pendingComplaints} waiting`}
-              />
-              <StatCard
-                title="In Progress"
-                value={overview.inProgressComplaints}
-                icon={<AlertCircle className="w-8 h-8" />}
-                color="bg-purple-500"
-                trend={`${overview.inProgressComplaints} active`}
-              />
-              <StatCard
-                title="Completed"
-                value={overview.completedComplaints}
-                icon={<CheckCircle className="w-8 h-8" />}
-                color="bg-green"
-                trend={`${overview.completionRate}% completion rate`}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-blue-600" />
-                  Status Distribution
-                </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={statusDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {statusDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-green-600" />
-                  Department-wise Complaints
-                </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={departmentDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {departmentDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-
-          </>
-        )}
-
-        {selectedView === 'departments' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Department Performance</h3>
-              <div className="space-y-4">
-                {departmentStats.map((dept, index) => (
-                  <DepartmentCard 
-                    key={dept.id} 
-                    department={dept} 
-                    color={DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length]} 
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Department Comparison</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={departmentStats}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="pending" fill="#f59e0b" name="Pending" />
-                  <Bar dataKey="inProgress" fill="#3b82f6" name="In Progress" />
-                  <Bar dataKey="completed" fill="#10b981" name="Completed" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ title, value, icon, color, trend }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500 mt-2">{trend}</p>
-        </div>
-        <div className={`${color} text-white p-3 rounded-lg`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DepartmentCard = ({ department, color }) => {
-  const total = department.totalComplaints;
-  const completionRate = total > 0 ? Math.round((department.completed / total) * 100) : 0;
-
-  return (
-    <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div 
-            className="w-12 h-12 rounded-lg flex items-center justify-center" 
-            style={{ backgroundColor: color }}
-          >
-            <Activity className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h4 className="font-bold text-gray-900">{department.name}</h4>
-            <p className="text-sm text-gray-600">{total} total complaints</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-gray-900">{completionRate}%</div>
-          <div className="text-xs text-gray-600">Completion</div>
-        </div>
-      </div>
+    let autoAssignmentInfo = null;
+    
+    if (newStatus === 'Complete' && currentComplaint.Eid) {
+      console.log("🔄 Employee completed a task, checking for pending complaints...");
       
-      <div className="space-y-3">
-        <div>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Pending</span>
-            <span className="font-semibold text-yellow-600">{department.pending}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-yellow-500 h-2 rounded-full transition-all"
-              style={{ width: `${total > 0 ? (department.pending / total) * 100 : 0}%` }}
-            ></div>
-          </div>
-        </div>
-        <div>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">In Progress</span>
-            <span className="font-semibold text-blue-600">{department.inProgress}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-500 h-2 rounded-full transition-all"
-              style={{ width: `${total > 0 ? (department.inProgress / total) * 100 : 0}%` }}
-            ></div>
-          </div>
-        </div>
-        <div>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Completed</span>
-            <span className="font-semibold text-green-600">{department.completed}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-green-500 h-2 rounded-full transition-all"
-              style={{ width: `${total > 0 ? (department.completed / total) * 100 : 0}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+      const employeeId = currentComplaint.Eid;
+      const department = currentComplaint.Department;
 
-const DEPARTMENT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+      const { data: employeeData, error: empFetchError } = await supabase
+        .from('EmployeeProfile')
+        .select('AssignCid, AssignHistory, Eid, Name')
+        .eq('Eid', employeeId)
+        .single();
 
-export default Analytics;
+      if (!empFetchError && employeeData) {
+        let updatedAssignCid = [];
+        if (employeeData.AssignCid) {
+          if (Array.isArray(employeeData.AssignCid)) {
+            updatedAssignCid = employeeData.AssignCid.filter(id => id !== Cid);
+          } else if (typeof employeeData.AssignCid === 'string') {
+            updatedAssignCid = employeeData.AssignCid
+              .split(',')
+              .filter(id => id.trim())
+              .map(id => parseInt(id))
+              .filter(id => id !== Cid);
+          }
+        }
+
+        console.log(`📊 Employee ${employeeId} now has ${updatedAssignCid.length} active tasks`);
+
+        await supabase
+          .from('EmployeeProfile')
+          .update({ AssignCid: updatedAssignCid })
+          .eq('Eid', employeeId);
+
+        if (updatedAssignCid.length < 5) {
+          console.log("✅ Employee has capacity, checking for pending complaints...");
+
+          const { data: pendingComplaints, error: pendingError } = await supabase
+            .from('complaints')
+            .select('Cid, Name, Department, Address, CreatedAt, deadline')
+            .eq('Department', department)
+            .eq('WorkStatus', 'Pending')
+            .is('Eid', null)
+            .order('CreatedAt', { ascending: true })
+            .limit(1);
+
+          if (!pendingError && pendingComplaints && pendingComplaints.length > 0) {
+            const pendingComplaint = pendingComplaints[0];
+            console.log(`🎯 Found pending complaint ${pendingComplaint.Cid}, assigning to employee ${employeeId}`);
+
+            const { error: assignError } = await supabase
+              .from('complaints')
+              .update({
+                Eid: employeeId,
+                WorkStatus: 'In Progress'
+              })
+              .eq('Cid', pendingComplaint.Cid);
+
+            if (!assignError) {
+              const newAssignCid = [...updatedAssignCid, pendingComplaint.Cid];
+              
+              const historyEntry = {
+                Cid: pendingComplaint.Cid,
+                assignedAt: new Date().toISOString(),
+                status: 'Auto-Assigned'
+              };
+
+              let updatedHistory = [];
+              if (!employeeData.AssignHistory) {
+                updatedHistory = [historyEntry];
+              } else if (Array.isArray(employeeData.AssignHistory)) {
+                updatedHistory = [...employeeData.AssignHistory, historyEntry];
+              } else if (typeof employeeData.AssignHistory === 'string') {
+                try {
+                  const existingHistory = JSON.parse(employeeData.AssignHistory);
+                  updatedHistory = Array.isArray(existingHistory) 
+                    ? [...existingHistory, historyEntry]
+                    : [historyEntry];
+                } catch {
+                  updatedHistory = [historyEntry];
+                }
+              } else {
+                updatedHistory = [historyEntry];
+              }
+
+              const { error: updateEmpError } = await supabase
+                .from('EmployeeProfile')
+                .update({
+                  AssignCid: newAssignCid,
+                  AssignHistory: updatedHistory
+                })
+                .eq('Eid', employeeId);
+
+              if (!updateEmpError) {
+                console.log("✅ Pending complaint auto-assigned successfully");
+                autoAssignmentInfo = {
+                  newComplaintId: pendingComplaint.Cid,
+                  message: `Pending complaint #${pendingComplaint.Cid} automatically assigned`
+                };
+              }
+            }
+          } else {
+            console.log("ℹ️ No pending complaints found for auto-assignment");
+          }
+        } else {
+          console.log("⚠️ Employee at capacity, no auto-assignment");
+        }
+      }
+    }
+   
+    console.log("=== SENDING SUCCESS RESPONSE ===");
+    res.status(200).json({
+      success: true,
+      message: `Status changed from ${currentComplaint.WorkStatus} to ${newStatus}`,
+      data: updatedComplaint,
+      autoAssignment: autoAssignmentInfo
+    });
+  } catch(err) {
+    console.error("=== CATCH BLOCK ERROR ===");
+    console.error("Error:", err);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
+});
+
+// Manager SLA Violations - SIMPLE VERSION
+app.get("/manager/:Eid/sla-violations", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    // Get manager's department
+    const { data: manager } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId')
+      .eq('Eid', Eid)
+      .single();
+    
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+    
+    // Simple query - just fetch Violated complaints from database
+    const { data: pendingViolations } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Department', manager.DeptId)
+      .eq('WorkStatus', 'Pending')
+      .eq('slastatus', 'Violated');
+    
+    const { data: inProgressViolations } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Department', manager.DeptId)
+      .eq('WorkStatus', 'In Progress')
+      .eq('slastatus', 'Violated');
+    
+    const { data: warnings } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Department', manager.DeptId)
+      .in('WorkStatus', ['Pending', 'In Progress'])
+      .eq('slastatus', 'Warning');
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        pendingViolations: pendingViolations || [],
+        inProgressViolations: inProgressViolations || [],
+        warnings: warnings || []
+      },
+      counts: {
+        pendingViolations: pendingViolations?.length || 0,
+        inProgressViolations: inProgressViolations?.length || 0,
+        warnings: warnings?.length || 0,
+        total: (pendingViolations?.length || 0) + (inProgressViolations?.length || 0) + (warnings?.length || 0)
+      }
+    });
+  } catch(err) {
+    console.error("SLA violations error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+// Employee SLA Violations - SIMPLE VERSION
+app.get("/employee/:Eid/sla-violations", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    // Simple query - just fetch Violated complaints assigned to this employee
+    const { data: violations } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Eid', Eid)
+      .eq('WorkStatus', 'In Progress')
+      .eq('slastatus', 'Violated');
+    
+    const { data: warnings } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Eid', Eid)
+      .eq('WorkStatus', 'In Progress')
+      .eq('slastatus', 'Warning');
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        violations: violations || [],
+        warnings: warnings || []
+      },
+      counts: {
+        violations: violations?.length || 0,
+        warnings: warnings?.length || 0,
+        total: (violations?.length || 0) + (warnings?.length || 0)
+      }
+    });
+  } catch(err) {
+    console.error("Employee SLA violations error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.post("/trigger-sla-check", async(req, res) => {
+  try {
+    console.log("🔄 Manual SLA check triggered");
+    
+    const now = new Date();
+    
+    const { data: allComplaints, error: fetchErr } = await supabase
+      .from('complaints')
+      .select('Cid, deadline, WorkStatus, slastatus, CreatedAt')
+      .in('WorkStatus', ['Pending', 'In Progress']);
+    if (fetchErr) {  // ✅ ADDED
+  console.error("❌ Error fetching complaints:", fetchErr);
+  return res.status(500).json({
+    success: false,
+    message: 'Failed to fetch complaints'
+  });
+}
+    console.log(`📊 Found ${allComplaints?.length || 0} active complaints`);  // ✅ ADDED
+    
+    let updatedCount = 0;
+    
+    for (const complaint of allComplaints || []) {
+      if (!complaint.deadline) continue;
+      
+      const deadline = new Date(complaint.deadline);
+      const timeRemaining = deadline - now;
+      const hoursRemaining = timeRemaining / (1000 * 60 * 60);
+      
+      let newSLAStatus = complaint.slastatus;
+      let slaViolatedAt = null;
+      
+      if (hoursRemaining < 0) {
+        newSLAStatus = 'Violated';
+        slaViolatedAt = complaint.slaviolatedat || now.toISOString();
+      } else if (hoursRemaining <= 6) {
+        newSLAStatus = 'Warning';
+      } else {
+        newSLAStatus = 'On Track';
+      }
+      
+      if (newSLAStatus !== complaint.slastatus) {
+        const{ error: updateErr } = await supabase
+          .from('complaints')
+          .update({
+            slastatus: newSLAStatus,
+            slaviolatedat: slaViolatedAt
+          })
+          .eq('Cid', complaint.Cid);
+        if (updateErr) {  // ✅ ADDED
+    console.error(`❌ Failed to update complaint ${complaint.Cid}:`, updateErr);
+  } else {
+    console.log(`✅ Updated complaint ${complaint.Cid}`);
+    updatedCount++;
+  }
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `SLA check completed. ${updatedCount} complaints updated.`,
+      updatedCount: updatedCount,
+      totalChecked: allComplaints?.length || 0
+    });
+  } catch(err) {
+    console.error("SLA check trigger error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/manager/:Eid/profile", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+   
+    console.log("=== MANAGER PROFILE ENDPOINT HIT ===");
+    console.log("Manager Eid:", Eid);
+   
+
+    const { data: managerProfile, error: profileError } = await supabase
+      .from('EmployeeProfile')
+      .select('*')
+      .eq('Eid', Eid)
+      .eq('role', 'manager')
+      .single();
+   
+    if (profileError || !managerProfile) {
+      console.error("Manager not found:", profileError);
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found or invalid role'
+      });
+    }
+
+
+    let departmentName = null;
+    if (managerProfile.DeptId) {
+      const { data: deptData } = await supabase
+        .from('Department')
+        .select('DeptName')
+        .eq('DeptId', managerProfile.DeptId)
+        .single();
+      
+      departmentName = deptData?.DeptName;
+      console.log("Department:", departmentName);
+    }
+   
+
+    const responseData = {
+      ...managerProfile,
+      DepartmentName: departmentName,
+      DepartmentCode: managerProfile.DeptId
+    };
+   
+    res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch(err) {
+    console.error("Manager profile error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/manager/:Eid/workers", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    console.log("=== MANAGER WORKERS ENDPOINT HIT ===");
+    
+    const { data: manager, error: managerError } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId')
+      .eq('Eid', Eid)
+      .single();
+    
+    if (managerError || !manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+    
+    const { data: workers, error: workersError } = await supabase
+      .from('EmployeeProfile')
+      .select('*')
+      .eq('DeptId', manager.DeptId)
+      .eq('role', 'employee')
+      .order('Name', { ascending: true });
+    
+    if (workersError) {
+      console.error("Workers fetch error:", workersError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch workers'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: workers || [],
+      count: workers?.length || 0
+    });
+  } catch(err) {
+    console.error("Workers fetch error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/manager/:Eid/complaints", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+   
+    console.log("=== MANAGER COMPLAINTS ENDPOINT HIT ===");
+    console.log("Manager Eid:", Eid);
+   
+
+    const { data: manager, error: managerError } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId')
+      .eq('Eid', Eid)
+      .single();
+   
+    if (managerError || !manager) {
+      console.error("Manager not found:", managerError);
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+   
+    console.log("Manager's DeptId:", manager.DeptId);
+   
+
+    const { data: complaints, error: complaintsError } = await supabase
+      .from('complaints')
+      .select(`
+        *,
+        EmployeeProfile:Eid (
+          Name,
+          Eid
+        )
+      `)
+
+      .eq('Department', manager.DeptId)  // ✅ Match with DeptId directly
+
+      .order('CreatedAt', { ascending: false });
+   
+    if (complaintsError) {
+      console.error("Complaints fetch error:", complaintsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch complaints'
+      });
+    }
+   
+    console.log("Complaints found:", complaints?.length || 0);
+   
+    res.status(200).json({
+      success: true,
+      data: complaints || [],
+      count: complaints?.length || 0
+    });
+  } catch(err) {
+    console.error("Complaints fetch error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/manager/:Eid/stats", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    console.log("=== MANAGER STATS ENDPOINT HIT ===");
+    
+    const { data: manager } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId')
+      .eq('Eid', Eid)
+      .single();
+    
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+    
+    const { data: deptData } = await supabase
+      .from('Department')
+      .select('DeptName')
+      .eq('DeptId', manager.DeptId)
+      .single();
+    
+    const departmentName = deptData?.DeptName;
+    
+    const { count: workersCount } = await supabase
+      .from('EmployeeProfile')
+      .select('*', { count: 'exact', head: true })
+      .eq('DeptId', manager.DeptId)
+      .eq('role', 'employee');
+    
+    const { count: totalComplaints } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName);
+    
+    const { count: pendingComplaints } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: inProgressComplaints } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: completedComplaints } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('WorkStatus', 'Complete');
+    
+    const { count: slaViolations } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('slastatus', 'Violated')
+      .in('WorkStatus', ['Pending', 'In Progress']);
+    
+    const { count: slaWarnings } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('slastatus', 'Warning')
+      .in('WorkStatus', ['Pending', 'In Progress']);
+    
+    const { count: onTrack } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', departmentName)
+      .eq('slastatus', 'On Track')
+      .in('WorkStatus', ['Pending', 'In Progress']);
+    
+    const stats = {
+      totalWorkers: workersCount || 0,
+      totalComplaints: totalComplaints || 0,
+      pendingComplaints: pendingComplaints || 0,
+      inProgressComplaints: inProgressComplaints || 0,
+      completedComplaints: completedComplaints || 0,
+      sla: {
+        violations: slaViolations || 0,
+        warnings: slaWarnings || 0,
+        onTrack: onTrack || 0,
+        complianceRate: totalComplaints > 0 
+          ? ((completedComplaints - (slaViolations || 0)) / totalComplaints * 100).toFixed(1)
+          : '0.0'
+      }
+    };
+    
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+  } catch(err) {
+    console.error("Stats fetch error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+
+app.delete("/manager/complaint/:Cid", async(req, res) => {
+  try {
+    const Cid = parseInt(req.params.Cid, 10);
+    const { managerId } = req.query;
+    
+    console.log("=== MANAGER DELETE COMPLAINT ===");
+    
+    if (isNaN(Cid) || Cid <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid complaint ID'
+      });
+    }
+    
+    const { data: manager } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId, role')
+      .eq('Eid', managerId)
+      .single();
+    
+    if (!manager || manager.role !== 'manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: Only managers can delete complaints'
+      });
+    }
+    
+    const { data: deptData } = await supabase
+      .from('Department')
+      .select('DeptName')
+      .eq('DeptId', manager.DeptId)
+      .single();
+    
+    const { data: complaint } = await supabase
+      .from('complaints')
+      .select('Department, Eid, WorkStatus')
+      .eq('Cid', Cid)
+      .single();
+    
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+    
+    if (complaint.Department !== deptData?.DeptName) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete complaints from your department'
+      });
+    }
+
+    if (complaint.WorkStatus !== 'In Progress' && complaint.WorkStatus !== 'Pending') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only complaints with status "In Progress" or "Pending" can be deleted'
+      });
+    }
+    
+    if (complaint.Eid) {
+      const { data: employee } = await supabase
+        .from('EmployeeProfile')
+        .select('AssignCid, AssignHistory')
+        .eq('Eid', complaint.Eid)
+        .single();
+      
+      if (employee) {
+        let updatedAssignCid = [];
+        if (Array.isArray(employee.AssignCid)) {
+          updatedAssignCid = employee.AssignCid.filter(id => id !== Cid);
+        } else if (employee.AssignCid) {
+          updatedAssignCid = employee.AssignCid === Cid ? [] : [employee.AssignCid];
+        }
+
+        let updatedAssignHistory = [];
+        if (Array.isArray(employee.AssignHistory)) {
+          updatedAssignHistory = employee.AssignHistory.filter(id => id !== Cid.toString());
+        } else if (employee.AssignHistory) {
+          updatedAssignHistory = employee.AssignHistory === Cid.toString() ? [] : [employee.AssignHistory];
+        }
+        
+        await supabase
+          .from('EmployeeProfile')
+          .update({ 
+            AssignCid: updatedAssignCid,
+            AssignHistory: updatedAssignHistory 
+          })
+          .eq('Eid', complaint.Eid);
+      }
+    }
+    
+    const { error: deleteError } = await supabase
+      .from('complaints')
+      .delete()
+      .eq('Cid', Cid);
+    
+    if (deleteError) {
+      console.error("Delete error:", deleteError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete complaint'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Complaint deleted successfully'
+    });
+  } catch(err) {
+    console.error("Delete error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/manager/:Eid/heatmap", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    console.log("=== MANAGER HEATMAP ENDPOINT ===");
+    
+    const { data: manager } = await supabase
+      .from('EmployeeProfile')
+      .select('DeptId')
+      .eq('Eid', Eid)
+      .single();
+    
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+    
+    const { data: deptData } = await supabase
+      .from('Department')
+      .select('DeptName')
+      .eq('DeptId', manager.DeptId)
+      .single();
+    
+    const { data: complaints } = await supabase
+      .from('complaints')
+      .select('Latitude, Longitude, Cid, WorkStatus')
+      .eq('Department', deptData?.DeptName)
+      .not('Latitude', 'is', null)
+      .not('Longitude', 'is', null);
+    
+    const heatmapData = complaints?.map(c => [
+      c.Latitude,
+      c.Longitude,
+      c.WorkStatus === 'Pending' ? 1 : 0.5
+    ]) || [];
+    
+    res.status(200).json({
+      success: true,
+      data: heatmapData,
+      count: heatmapData.length
+    });
+  } catch(err) {
+    console.error("Heatmap error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+
+app.get("/analytics", async(req, res) => {
+  try {
+    const { count: totalComplaints } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true });
+    
+    const { count: totalComplete } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('WorkStatus', 'Complete');
+    
+    const { count: totalPending } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: totalInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: totalComplaintsWater } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_W');
+    
+    const { count: totalComplaintsElectricity } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_E');
+    
+    const { count: totalComplaintsPublicInfrastructure } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_PI');
+    
+    const { count: totalComplaintsCleanliness } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_C');
+    
+    const { count: totalCleanlinessPending } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_C')
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: totalCleanlinessInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_C')
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: totalCleanlinessComplete } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_C')
+      .eq('WorkStatus', 'Complete');
+    
+    const { count: totalElectricityPending } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_E')
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: totalElectricityInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_E')
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: totalElectricityComplete } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_E')
+      .eq('WorkStatus', 'Complete');
+    
+    const { count: totalWaterPending } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_W')
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: totalWaterInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_W')
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: totalWaterComplete } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_W')
+      .eq('WorkStatus', 'Complete');
+    
+    const { count: totalPublicInfrastructurePending } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_PI')
+      .eq('WorkStatus', 'Pending');
+    
+    const { count: totalPublicInfrastructureInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_PI')
+      .eq('WorkStatus', 'In Progress');
+    
+    const { count: totalPublicInfrastructureComplete } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_PI')
+      .eq('WorkStatus', 'Complete');
+
+    res.status(200).json({
+      success: true,
+      total: {
+        complaints: totalComplaints,
+        complete: totalComplete,
+        pending: totalPending,
+        inProgress: totalInProgress
+      },
+      byDepartment: {
+        water: {
+          total: totalComplaintsWater,
+          complete: totalWaterComplete,
+          pending: totalWaterPending,
+          inProgress: totalWaterInProgress
+        },
+        electricity: {
+          total: totalComplaintsElectricity,
+          complete: totalElectricityComplete,
+          pending: totalElectricityPending,
+          inProgress: totalElectricityInProgress
+        },
+        publicInfrastructure: {
+          total: totalComplaintsPublicInfrastructure,
+          complete: totalPublicInfrastructureComplete,
+          pending: totalPublicInfrastructurePending,
+          inProgress: totalPublicInfrastructureInProgress
+        },
+        cleanliness: {
+          total: totalComplaintsCleanliness,
+          complete: totalCleanlinessComplete,
+          pending: totalCleanlinessPending,
+          inProgress: totalCleanlinessInProgress
+        }
+      }
+    });
+  } catch(err) {
+    console.error("Analytics error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/employee/:Eid/complaints", async(req, res) => {
+  try {
+    const Eid = req.params.Eid;
+    
+    console.log("==========================================");
+    console.log("📋 Fetching complaints for employee:", Eid);
+    console.log("==========================================");
+   
+    const { data: employeeData, error: empError } = await supabase
+      .from('EmployeeProfile')
+      .select('*')
+      .eq('Eid', Eid)
+      .single();
+   
+    if (empError) {
+      console.error("❌ Employee not found:", empError);
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found.',
+        error: empError.message
+      });
+    }
+    
+    console.log("✅ Employee found:", employeeData.Name);
+   
+    const { data: assignedComplaints, error: fetchError } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('Eid', Eid)
+      .order('CreatedAt', { ascending: false });
+   
+    if (fetchError) {
+      console.error("❌ Database error fetching complaints:", fetchError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch complaints for employee.',
+        error: fetchError.message
+      });
+    }
+    
+    console.log("📊 Complaints found:", assignedComplaints?.length || 0);
+    console.log("==========================================");
+   
+    res.status(200).json({
+      success: true,
+      data: assignedComplaints || [],
+      employee: employeeData,
+      count: assignedComplaints?.length || 0
+    });
+  } catch(err) {
+    console.error("❌ Server error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+  console.log(`API available at: http://localhost:${port}`);
+});
