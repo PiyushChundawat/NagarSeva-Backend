@@ -45,7 +45,7 @@ function Footer({name="NagarSeva"}){
                     </li>
                     <li>
                       <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
-                        <div className="w-1 h-1 bg-green-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
+                        <div className="w-1 h-1 bg-green rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">हमारे बारे में | About us</span>
                       </a>
                     </li>

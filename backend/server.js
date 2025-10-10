@@ -404,7 +404,9 @@ app.get("/complaint/:id", async(req, res) => {
         Address,
         Eid,
         deadline,
-        slastatus,
+
+       slastatus,
+
         slaviolatedat,
         EmployeeProfile:Eid (
           Name,
@@ -942,6 +944,7 @@ app.get("/manager/:Eid/profile", async(req, res) => {
     console.log("=== MANAGER PROFILE ENDPOINT HIT ===");
     console.log("Manager Eid:", Eid);
    
+
     const { data: managerProfile, error: profileError } = await supabase
       .from('EmployeeProfile')
       .select('*')
@@ -957,6 +960,7 @@ app.get("/manager/:Eid/profile", async(req, res) => {
       });
     }
 
+
     let departmentName = null;
     if (managerProfile.DeptId) {
       const { data: deptData } = await supabase
@@ -969,6 +973,7 @@ app.get("/manager/:Eid/profile", async(req, res) => {
       console.log("Department:", departmentName);
     }
    
+
     const responseData = {
       ...managerProfile,
       DepartmentName: departmentName,
@@ -1043,6 +1048,7 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
     console.log("=== MANAGER COMPLAINTS ENDPOINT HIT ===");
     console.log("Manager Eid:", Eid);
    
+
     const { data: manager, error: managerError } = await supabase
       .from('EmployeeProfile')
       .select('DeptId')
@@ -1059,6 +1065,7 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
    
     console.log("Manager's DeptId:", manager.DeptId);
    
+
     const { data: complaints, error: complaintsError } = await supabase
       .from('complaints')
       .select(`
@@ -1068,7 +1075,9 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
           Eid
         )
       `)
-      .eq('Department', manager.DeptId)
+
+      .eq('Department', manager.DeptId)  // ✅ Match with DeptId directly
+
       .order('CreatedAt', { ascending: false });
    
     if (complaintsError) {
@@ -1200,6 +1209,7 @@ app.get("/manager/:Eid/stats", async(req, res) => {
     });
   }
 });
+
 
 app.delete("/manager/complaint/:Cid", async(req, res) => {
   try {
@@ -1370,6 +1380,7 @@ app.get("/manager/:Eid/heatmap", async(req, res) => {
     });
   }
 });
+
 
 app.get("/analytics", async(req, res) => {
   try {

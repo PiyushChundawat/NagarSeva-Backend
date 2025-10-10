@@ -406,7 +406,7 @@ export default function ManagerDashboard() {
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900">
-                  My Workers - {profile?.DeptId || 'Department'}
+                  My Workers - {profile?.DepartmentName || profile?.DeptId || 'Department'}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">Manage your department workers</p>
               </div>

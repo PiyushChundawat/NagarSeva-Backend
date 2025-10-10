@@ -162,12 +162,12 @@ export default function LandingPage({ name  }) {
             <div key={index} className="group relative ">
               
               
-              <div className="relative   bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden h-full transform  transition-all duration-500 ">
+              <div className="relative   bg-gray-100 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-50 overflow-hidden h-full transform  transition-all duration-500 ">
        
                 <div className="p-6 pb-4">
                   <div className="flex items-start space-x-4 mb-4">
-                    <div className={`relative p-4 rounded-xl bg-green  shadow-lg transform  transition-transform duration-500`}>
-                      <FiAlertTriangle className="w-6 h-6 text-white" />
+                    <div className={`w-14 h-14 flex items-center justify-center rounded-lg bg-green-600 shadow-md transform transition-transform duration-500`}>
+                      <FiAlertTriangle className="w-6 h-6 text-green" aria-hidden={true} />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 mb-1">{service.title}</h3>
@@ -186,8 +186,8 @@ export default function LandingPage({ name  }) {
                   <div className="space-y-2">
                     {service.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
-                        <div className="w-4 h-4 bg-gradient-to-r from-green to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <FiCheck className="w-2.5 h-2.5 text-white" />
+                        <div className="w-5 h-5 bg-green rounded-full flex items-center justify-center flex-shrink-0">
+                          <FiCheck className="w-3 h-3 text-white" aria-hidden={true} />
                         </div>
                         <span>{feature}</span>
                       </div>
@@ -197,6 +197,7 @@ export default function LandingPage({ name  }) {
                 
               
                 <div className="p-6 pt-0">
+
                   <Link
                     id={`landing-service-${index}`}
                     to={service.link === 'Complaint' ? '/user/login' : `/${service.link}`}
@@ -204,6 +205,7 @@ export default function LandingPage({ name  }) {
                   >
                     
                     <span>{service.englishTitle}</span>
+
                   </Link>
                 </div>
               </div>
@@ -216,7 +218,7 @@ export default function LandingPage({ name  }) {
       <Section background="white" padding="small">
         <div className="text-center mb-16">
           <div className="flex justify-center mb-4">
-            <div className="bg-green text-white px-6 py-2 rounded-full text-sm font-semibold">
+            <div className="bg-orange-500 text-white px-6 py-2 rounded-full text-sm font-semibold">
               विशेषताएं | FEATURES
             </div>
           </div>
@@ -228,9 +230,9 @@ export default function LandingPage({ name  }) {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-8xl mx-auto">
           {features.map((feature, index) => (
-            <div key={index} className="flex items-start space-x-4 bg-gray-50 p-5 rounded-lg border-l-4 border-green">
-              <div className="bg-green p-3 rounded-lg flex-shrink-0 text-white flex items-center justify-center">
-                <FiCheck className="w-5 h-5" />
+            <div key={index} className="flex items-start space-x-4 bg-gray-100 p-5 rounded-lg border-l-4 border-orange-500">
+              <div className="w-10 h-10 bg-white rounded-md flex-shrink-0 text-white flex items-center justify-center">
+                <FiCheck className="w-5 h-5 text-orange-500" aria-hidden={true} />
               </div>
               <div>
                 <h3 className="text-md font-semibold text-gray-900 mb-1">{feature.title}</h3>
@@ -261,7 +263,7 @@ export default function LandingPage({ name  }) {
             </div>
 
             <div className="text-center">
-              <div className="bg-green w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-green-700">
+              <div className="bg-orange-200 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-500">
                 <FiMail className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Us</h3>
@@ -279,11 +281,7 @@ export default function LandingPage({ name  }) {
             </div>
           </div>
 
-          <div className="mt-12">
-            <Button size="lg">
-              Contact Support
-            </Button>
-          </div>
+    
         </div>
       </Section>
 

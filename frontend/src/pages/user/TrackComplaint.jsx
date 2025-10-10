@@ -17,7 +17,7 @@ export default function TrackComplaint() {
 
     try {
       // Call your backend API
-      const response = await fetch(`https://nagarseva-backend.onrender.com/${complaintId}`);
+      const response = await fetch(`https://nagarseva-backend.onrender.com/complaint/${complaintId}`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -97,17 +97,16 @@ export default function TrackComplaint() {
 
   const getDepartmentName = (deptId) => {
     const departments = {
-      1: { name: 'Road Maintenance', hindi: 'सड़क रखरखाव' },
-      2: { name: 'Water Supply', hindi: 'जल आपूर्ति' },
-      3: { name: 'Waste Management', hindi: 'कचरा प्रबंधन' },
-      4: { name: 'Electricity', hindi: 'बिजली' },
-      5: { name: 'Sanitation', hindi: 'स्वच्छता' }
+     'DPT_W': { name: 'Water Supply', hindi: 'जल आपूर्ति' },
+    'DPT_E': { name: 'Electrical', hindi: 'बिजली' },
+    'DPT_PI': { name: 'Public Infrastructure', hindi: 'सार्वजनिक बुनियादी ढांचा' },
+    'DPT_C': { name: 'Cleanliness', hindi: 'स्वच्छता' }
     };
     return departments[deptId] || { name: 'Unknown', hindi: 'अज्ञात' };
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green">
+    <div className="min-h-screen bg-gray-100">
     
       {/* Top Flag */}
       <div className="bg-gradient-to-r from-orange-500 via-white to-green">
@@ -125,11 +124,11 @@ export default function TrackComplaint() {
         <div className="bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           <div className="p-8 text-center">
             <div className="flex justify-center mb-4">
-              <div className="h-20 w-20 bg-gradient-to-r from-orange-500  to-green rounded-full flex items-center justify-center">
+              <div className="h-20 w-20 bg-orange-500 rounded-full flex items-center justify-center">
                 <FileText className="h-10 w-10 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-green bg-clip-text text-transparent mb-3">
+            <h1 className="text-4xl font-bold bg-green opacity-80 bg-clip-text text-transparent mb-3">
               शिकायत ट्रैक करें
             </h1>
             <p className="text-xl text-gray-600 mb-2">Track Your Complaint</p>
@@ -198,16 +197,16 @@ export default function TrackComplaint() {
         {/* Search Result */}
         {searchResult && (
           <div id="track-result" className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-orange-500 via-white to-green"></div>
+            <div className="h-2 bg-green"></div>
             
             {/* Header Section */}
-            <div className="p-6 bg-gradient-to-r from-orange-50 to-green border-b">
+            <div className="p-6 bg-green border-b">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  <h2 className="text-2xl font-bold text-white mb-1">
                     शिकायत ID: {complaintId}
                   </h2>
-                  <p className="text-gray-600">Complaint ID: {complaintId}</p>
+                  <p className="text-gray-100">Complaint ID: {complaintId}</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <span className={`px-4 py-2 rounded-lg font-semibold text-sm border-2 flex items-center space-x-2 ${getStatusColor(searchResult.WorkStatus)}`}>
