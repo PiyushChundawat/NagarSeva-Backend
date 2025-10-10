@@ -438,7 +438,7 @@ export default function WorkerDashboard() {
                 <div className="p-6">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 bg-green rounded-md p-3">
-                      <svg className="h-6 w-6 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
@@ -455,7 +455,7 @@ export default function WorkerDashboard() {
                   <div className="flex items-center">
                     <div className={`flex-shrink-0 rounded-md p-3 ${slaData.counts.total > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
                       <svg className={`h-6 w-6 ${slaData.counts.total > 0 ? 'text-red-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-2v-2m0 0V9m0 2h2m0 0h2m0 0h-2m0 0h-2" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-2v-2m0 " />
                       </svg>
                     </div>
                     <div className="ml-4">
