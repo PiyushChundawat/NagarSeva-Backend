@@ -242,8 +242,8 @@ app.post("/complaint", async (req, res) => {
           Eid: assignedEid,
           WorkStatus: workStatus,
           CreatedAt: createdAt,
-          Deadline: deadline,
-          SLAStatus: 'On Track'
+          deadline: deadline,
+          slastatus: 'On Track'
         }
       ])
       .select()
@@ -451,9 +451,9 @@ app.get("/complaint/:id", async(req, res) => {
       CreatedAt: data.CreatedAt,
       Address: data.Address,
       Eid: data.Eid,
-      Deadline: data.Deadline,
-      SLAStatus: data.SLAStatus,
-      SLAViolatedAt: data.SLAViolatedAt,
+      Deadline: data.deadline,
+      SLAStatus: data.slastatus,
+      SLAViolatedAt: data.slaviolatedat,
       EmployeeName: data.EmployeeProfile?.Name || null,
       Department: data.EmployeeProfile?.DeptId || null
     };
@@ -955,16 +955,18 @@ app.post("/trigger-sla-check", async(req, res) => {
 app.get("/manager/:Eid/profile", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
+   
     console.log("=== MANAGER PROFILE ENDPOINT HIT ===");
-    
+    console.log("Manager Eid:", Eid);
+   
+    // First, get the manager profile
     const { data: managerProfile, error: profileError } = await supabase
       .from('EmployeeProfile')
       .select('*')
       .eq('Eid', Eid)
       .eq('role', 'manager')
       .single();
-    
+   
     if (profileError || !managerProfile) {
       console.error("Manager not found:", profileError);
       return res.status(404).json({
@@ -972,10 +974,30 @@ app.get("/manager/:Eid/profile", async(req, res) => {
         message: 'Manager not found or invalid role'
       });
     }
-    
+
+    // Then, get the department name
+    let departmentName = null;
+    if (managerProfile.DeptId) {
+      const { data: deptData } = await supabase
+        .from('Department')
+        .select('DeptName')
+        .eq('DeptId', managerProfile.DeptId)
+        .single();
+      
+      departmentName = deptData?.DeptName;
+      console.log("Department:", departmentName);
+    }
+   
+    // Return enhanced profile
+    const responseData = {
+      ...managerProfile,
+      DepartmentName: departmentName,
+      DepartmentCode: managerProfile.DeptId
+    };
+   
     res.status(200).json({
       success: true,
-      data: managerProfile
+      data: responseData
     });
   } catch(err) {
     console.error("Manager profile error:", err);
@@ -1039,30 +1061,28 @@ app.get("/manager/:Eid/workers", async(req, res) => {
 app.get("/manager/:Eid/complaints", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
+   
     console.log("=== MANAGER COMPLAINTS ENDPOINT HIT ===");
-    
+    console.log("Manager Eid:", Eid);
+   
+    // Get manager's department
     const { data: manager, error: managerError } = await supabase
       .from('EmployeeProfile')
       .select('DeptId')
       .eq('Eid', Eid)
       .single();
-    
+   
     if (managerError || !manager) {
+      console.error("Manager not found:", managerError);
       return res.status(404).json({
         success: false,
         message: 'Manager not found'
       });
     }
-    
-    const { data: deptData, error: deptError } = await supabase
-      .from('Department')
-      .select('DeptName')
-      .eq('DeptId', manager.DeptId)
-      .single();
-    
-    const departmentName = deptData?.DeptName;
-    
+   
+    console.log("Manager's DeptId:", manager.DeptId);
+   
+    // Fetch complaints directly using DeptId (not DeptName)
     const { data: complaints, error: complaintsError } = await supabase
       .from('complaints')
       .select(`
@@ -1072,9 +1092,9 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
           Eid
         )
       `)
-      .eq('Department', departmentName)
+      .eq('Department', manager.DeptId)  // ✅ Match with DeptId directly
       .order('CreatedAt', { ascending: false });
-    
+   
     if (complaintsError) {
       console.error("Complaints fetch error:", complaintsError);
       return res.status(500).json({
@@ -1082,7 +1102,9 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
         message: 'Failed to fetch complaints'
       });
     }
-    
+   
+    console.log("Complaints found:", complaints?.length || 0);
+   
     res.status(200).json({
       success: true,
       data: complaints || [],
@@ -1206,91 +1228,91 @@ app.get("/manager/:Eid/stats", async(req, res) => {
 });
 
 // Assign complaint to worker
-app.post("/manager/assign-complaint", async(req, res) => {
-  try {
-    const { complaintId, workerId, managerId } = req.body;
+// app.post("/manager/assign-complaint", async(req, res) => {
+//   try {
+//     const { complaintId, workerId, managerId } = req.body;
     
-    console.log("=== ASSIGN COMPLAINT ENDPOINT HIT ===");
+//     console.log("=== ASSIGN COMPLAINT ENDPOINT HIT ===");
     
-    if (!complaintId || !workerId || !managerId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields'
-      });
-    }
+//     if (!complaintId || !workerId || !managerId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Missing required fields'
+//       });
+//     }
     
-    const { data: updatedComplaint, error: updateError } = await supabase
-      .from('complaints')
-      .update({
-        Eid: workerId,
-        WorkStatus: 'In Progress'
-      })
-      .eq('Cid', complaintId)
-      .select()
-      .single();
+//     const { data: updatedComplaint, error: updateError } = await supabase
+//       .from('complaints')
+//       .update({
+//         Eid: workerId,
+//         WorkStatus: 'In Progress'
+//       })
+//       .eq('Cid', complaintId)
+//       .select()
+//       .single();
     
-    if (updateError) {
-      console.error("Assignment error:", updateError);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to assign complaint'
-      });
-    }
+//     if (updateError) {
+//       console.error("Assignment error:", updateError);
+//       return res.status(500).json({
+//         success: false,
+//         message: 'Failed to assign complaint'
+//       });
+//     }
     
-    const { data: employee } = await supabase
-      .from('EmployeeProfile')
-      .select('AssignCid, AssignHistory')
-      .eq('Eid', workerId)
-      .single();
+//     const { data: employee } = await supabase
+//       .from('EmployeeProfile')
+//       .select('AssignCid, AssignHistory')
+//       .eq('Eid', workerId)
+//       .single();
     
-    if (employee) {
-      let updatedAssignCid;
-      if (!employee.AssignCid) {
-        updatedAssignCid = [complaintId];
-      } else if (Array.isArray(employee.AssignCid)) {
-        updatedAssignCid = [...employee.AssignCid, complaintId];
-      } else {
-        updatedAssignCid = [complaintId];
-      }
+//     if (employee) {
+//       let updatedAssignCid;
+//       if (!employee.AssignCid) {
+//         updatedAssignCid = [complaintId];
+//       } else if (Array.isArray(employee.AssignCid)) {
+//         updatedAssignCid = [...employee.AssignCid, complaintId];
+//       } else {
+//         updatedAssignCid = [complaintId];
+//       }
       
-      const historyEntry = {
-        Cid: complaintId,
-        assignedAt: new Date().toISOString(),
-        assignedBy: managerId,
-        status: 'Assigned'
-      };
+//       const historyEntry = {
+//         Cid: complaintId,
+//         assignedAt: new Date().toISOString(),
+//         assignedBy: managerId,
+//         status: 'Assigned'
+//       };
       
-      let updatedHistory;
-      if (!employee.AssignHistory) {
-        updatedHistory = [historyEntry];
-      } else if (Array.isArray(employee.AssignHistory)) {
-        updatedHistory = [...employee.AssignHistory, historyEntry];
-      } else {
-        updatedHistory = [historyEntry];
-      }
+//       let updatedHistory;
+//       if (!employee.AssignHistory) {
+//         updatedHistory = [historyEntry];
+//       } else if (Array.isArray(employee.AssignHistory)) {
+//         updatedHistory = [...employee.AssignHistory, historyEntry];
+//       } else {
+//         updatedHistory = [historyEntry];
+//       }
       
-      await supabase
-        .from('EmployeeProfile')
-        .update({
-          AssignCid: updatedAssignCid,
-          AssignHistory: updatedHistory
-        })
-        .eq('Eid', workerId);
-    }
+//       await supabase
+//         .from('EmployeeProfile')
+//         .update({
+//           AssignCid: updatedAssignCid,
+//           AssignHistory: updatedHistory
+//         })
+//         .eq('Eid', workerId);
+//     }
     
-    res.status(200).json({
-      success: true,
-      message: 'Complaint assigned successfully',
-      data: updatedComplaint
-    });
-  } catch(err) {
-    console.error("Assign complaint error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
-  }
-});
+//     res.status(200).json({
+//       success: true,
+//       message: 'Complaint assigned successfully',
+//       data: updatedComplaint
+//     });
+//   } catch(err) {
+//     console.error("Assign complaint error:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: err.message
+//     });
+//   }
+// });
 
 // Delete complaint (manager only)
 app.delete("/manager/complaint/:Cid", async(req, res) => {
@@ -1465,6 +1487,7 @@ app.get("/manager/:Eid/heatmap", async(req, res) => {
 });
 
 // Get analytics data
+// Get analytics data
 app.get("/analytics", async(req, res) => {
   try {
     const { count: totalComplaints } = await supabase
@@ -1481,72 +1504,101 @@ app.get("/analytics", async(req, res) => {
       .select('*', { count: 'exact', head: true })
       .eq('WorkStatus', 'Pending');
     
+    const { count: totalInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('WorkStatus', 'In Progress');
+    
     const { count: totalComplaintsWater } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Water');
+      .eq('Department', 'DPT_W');
     
     const { count: totalComplaintsElectricity } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Electrical');
+      .eq('Department', 'DPT_E');
     
     const { count: totalComplaintsPublicInfrastructure } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Public Infrastructure');
+      .eq('Department', 'DPT_PI');
     
     const { count: totalComplaintsCleanliness } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Cleanliness');
+      .eq('Department', 'DPT_C');
     
     const { count: totalCleanlinessPending } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Cleanliness')
+      .eq('Department', 'DPT_C')
       .eq('WorkStatus', 'Pending');
+    
+    const { count: totalCleanlinessInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_C')
+      .eq('WorkStatus', 'In Progress');
     
     const { count: totalCleanlinessComplete } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Cleanliness')
+      .eq('Department', 'DPT_C')
       .eq('WorkStatus', 'Complete');
     
     const { count: totalElectricityPending } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Electrical')
+      .eq('Department', 'DPT_E')
       .eq('WorkStatus', 'Pending');
+    
+    const { count: totalElectricityInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_E')
+      .eq('WorkStatus', 'In Progress');
     
     const { count: totalElectricityComplete } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Electrical')
+      .eq('Department', 'DPT_E')
       .eq('WorkStatus', 'Complete');
     
     const { count: totalWaterPending } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Water')
+      .eq('Department', 'DPT_W')
       .eq('WorkStatus', 'Pending');
+    
+    const { count: totalWaterInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_W')
+      .eq('WorkStatus', 'In Progress');
     
     const { count: totalWaterComplete } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Water')
+      .eq('Department', 'DPT_W')
       .eq('WorkStatus', 'Complete');
     
     const { count: totalPublicInfrastructurePending } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Public Infrastructure')
+      .eq('Department', 'DPT_PI')
       .eq('WorkStatus', 'Pending');
+    
+    const { count: totalPublicInfrastructureInProgress } = await supabase
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('Department', 'DPT_PI')
+      .eq('WorkStatus', 'In Progress');
     
     const { count: totalPublicInfrastructureComplete } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
-      .eq('Department', 'Public Infrastructure')
+      .eq('Department', 'DPT_PI')
       .eq('WorkStatus', 'Complete');
 
     res.status(200).json({
@@ -1554,28 +1606,33 @@ app.get("/analytics", async(req, res) => {
       total: {
         complaints: totalComplaints,
         complete: totalComplete,
-        pending: totalPending
+        pending: totalPending,
+        inProgress: totalInProgress
       },
       byDepartment: {
         water: {
           total: totalComplaintsWater,
           complete: totalWaterComplete,
-          pending: totalWaterPending
+          pending: totalWaterPending,
+          inProgress: totalWaterInProgress
         },
         electricity: {
           total: totalComplaintsElectricity,
           complete: totalElectricityComplete,
-          pending: totalElectricityPending
+          pending: totalElectricityPending,
+          inProgress: totalElectricityInProgress
         },
         publicInfrastructure: {
           total: totalComplaintsPublicInfrastructure,
           complete: totalPublicInfrastructureComplete,
-          pending: totalPublicInfrastructurePending
+          pending: totalPublicInfrastructurePending,
+          inProgress: totalPublicInfrastructureInProgress
         },
         cleanliness: {
           total: totalComplaintsCleanliness,
           complete: totalCleanlinessComplete,
-          pending: totalCleanlinessPending
+          pending: totalCleanlinessPending,
+          inProgress: totalCleanlinessInProgress
         }
       }
     });
