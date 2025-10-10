@@ -747,6 +747,7 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
     const Eid = req.params.Eid;
     
     console.log("=== MANAGER SLA VIOLATIONS ENDPOINT ===");
+    console.log("Manager Eid:",Eid);
     
     const { data: manager } = await supabase
       .from('EmployeeProfile')
@@ -755,11 +756,13 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
       .single();
     
     if (!manager) {
+      console.log("Manager not found");
       return res.status(404).json({
         success: false,
         message: 'Manager not found'
       });
     }
+    console.log("Manager DeptId:",manager.DeptId);
     
     const { data: deptData } = await supabase
       .from('Department')
@@ -769,7 +772,7 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
     
     const departmentName = deptData?.DeptName;
     
-    const { data: pendingViolations } = await supabase
+    const { data: pendingViolations, error: pError} = await supabase
       .from('complaints')
       .select(`
         *,
@@ -782,6 +785,8 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
       .eq('WorkStatus', 'Pending')
       .eq('slastatus', 'Violated')
       .order('slaviolatedat', { ascending: true });
+    console.log("✅ Pending Violations:", pendingViolations?.length || 0);  
+    if (pError) console.error("Pending violations error:", pError);  
     
     const { data: inProgressViolations } = await supabase
       .from('complaints')
@@ -840,22 +845,25 @@ app.get("/employee/:Eid/sla-violations", async(req, res) => {
     
     console.log("=== EMPLOYEE SLA VIOLATIONS ENDPOINT ===");
     
-    const { data: violations } = await supabase
+    const { data: violations, error:vError } = await supabase
       .from('complaints')
       .select('*')
       .eq('Eid', Eid)
       .eq('WorkStatus', 'In Progress')
-      .eq('SLAStatus', 'Violated')
-      .order('SLAViolatedAt', { ascending: true });
+      .eq('slastatus', 'Violated')
+      .order('slaviolatedat', { ascending: true });
+
+    if(vError) console.error("Violations error:", vError);
     
-    const { data: warnings } = await supabase
+    const { data: warnings,error: wError } = await supabase
       .from('complaints')
       .select('*')
       .eq('Eid', Eid)
       .eq('WorkStatus', 'In Progress')
-      .eq('SLAStatus', 'Warning')
-      .order('Deadline', { ascending: true });
-    
+      .eq('slastatus', 'Warning')
+      .order('deadline', { ascending: true });
+
+    if(wError) console.error("Warnings error:",wError);
     res.status(200).json({
       success: true,
       data: {
@@ -883,43 +891,54 @@ app.post("/trigger-sla-check", async(req, res) => {
     
     const now = new Date();
     
-    const { data: allComplaints } = await supabase
+    const { data: allComplaints, error: fetchErr } = await supabase
       .from('complaints')
-      .select('Cid, Deadline, WorkStatus, SLAStatus')
+      .select('Cid, deadline, WorkStatus, slastatus, CreatedAt')
       .in('WorkStatus', ['Pending', 'In Progress']);
+    if (fetchErr) {  // ✅ ADDED
+  console.error("❌ Error fetching complaints:", fetchErr);
+  return res.status(500).json({
+    success: false,
+    message: 'Failed to fetch complaints'
+  });
+}
+    console.log(`📊 Found ${allComplaints?.length || 0} active complaints`);  // ✅ ADDED
     
     let updatedCount = 0;
     
     for (const complaint of allComplaints || []) {
-      if (!complaint.Deadline) continue;
+      if (!complaint.deadline) continue;
       
-      const deadline = new Date(complaint.Deadline);
+      const deadline = new Date(complaint.deadline);
       const timeRemaining = deadline - now;
       const hoursRemaining = timeRemaining / (1000 * 60 * 60);
       
-      let newSLAStatus = complaint.SLAStatus;
+      let newSLAStatus = complaint.slastatus;
       let slaViolatedAt = null;
       
       if (hoursRemaining < 0) {
         newSLAStatus = 'Violated';
-        slaViolatedAt = complaint.SLAViolatedAt || now.toISOString();
+        slaViolatedAt = complaint.slaviolatedat || now.toISOString();
       } else if (hoursRemaining <= 6) {
         newSLAStatus = 'Warning';
       } else {
         newSLAStatus = 'On Track';
       }
       
-      if (newSLAStatus !== complaint.SLAStatus) {
-        await supabase
+      if (newSLAStatus !== complaint.slastatus) {
+        const{error:updateErr} = await supabase
           .from('complaints')
           .update({
-            SLAStatus: newSLAStatus,
+            SLAStatus: newslastatus,
             SLAViolatedAt: slaViolatedAt
           })
           .eq('Cid', complaint.Cid);
-        
-        updatedCount++;
-      }
+        if (updateErr) {  // ✅ ADDED
+    console.error(`❌ Failed to update complaint ${complaint.Cid}:`, updateErr);
+  } else {
+    console.log(`✅ Updated complaint ${complaint.Cid}`);
+    updatedCount++;
+  }
     }
     
     res.status(200).json({
@@ -1164,21 +1183,21 @@ app.get("/manager/:Eid/stats", async(req, res) => {
       .from('complaints')
       .select('*', { count: 'exact', head: true })
       .eq('Department', departmentName)
-      .eq('SLAStatus', 'Violated')
+      .eq('slastatus', 'Violated')
       .in('WorkStatus', ['Pending', 'In Progress']);
     
     const { count: slaWarnings } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
       .eq('Department', departmentName)
-      .eq('SLAStatus', 'Warning')
+      .eq('slastatus', 'Warning')
       .in('WorkStatus', ['Pending', 'In Progress']);
     
     const { count: onTrack } = await supabase
       .from('complaints')
       .select('*', { count: 'exact', head: true })
       .eq('Department', departmentName)
-      .eq('SLAStatus', 'On Track')
+      .eq('slastatus', 'On Track')
       .in('WorkStatus', ['Pending', 'In Progress']);
     
     const stats = {
