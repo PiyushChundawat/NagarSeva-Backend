@@ -300,7 +300,7 @@ const Analytics = () => {
             
 <Link
   to="/"
-  className="inline-flex items-center px-4 py-2  bg-red-500 rounded-lg font-medium hover:bg-red-100 transition-colors"
+  className="inline-flex items-center text-white px-4 py-2  bg-red-500 rounded-lg font-medium hover:bg-red-400 transition-colors"
 >
    Home
 </Link>
