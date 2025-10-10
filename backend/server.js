@@ -535,7 +535,7 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
    
     const { data: currentComplaint, error: fetchError } = await supabase
       .from('complaints')
-      .select('WorkStatus, Eid, Department, CreatedAt, Deadline, SLAStatus')
+      .select('WorkStatus, Eid, Department, CreatedAt, deadline, slastatus')
       .eq('Cid', Cid)
       .single();
    
@@ -554,7 +554,7 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
 
     console.log("=== CURRENT COMPLAINT DATA ===");
     console.log("Current WorkStatus:", currentComplaint.WorkStatus);
-    console.log("Current SLAStatus:", currentComplaint.SLAStatus);
+    console.log("Current slastatus:", currentComplaint.slastatus);
    
     const newStatus = currentComplaint.WorkStatus === 'In Progress' ? 'Complete' : 'In Progress';
     console.log("New status will be:", newStatus);
@@ -572,7 +572,7 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
 
     const updatePayload = {
       WorkStatus: newStatus,
-      SLAStatus: newStatus === 'Complete' ? 'Completed' : currentComplaint.SLAStatus,
+      slastatus: newStatus === 'Complete' ? 'Completed' : currentComplaint.slastatus,
       TimeToResolve: timeToResolve
     };
 
@@ -652,7 +652,7 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
 
           const { data: pendingComplaints, error: pendingError } = await supabase
             .from('complaints')
-            .select('Cid, Name, Department, Address, CreatedAt, Deadline')
+            .select('Cid, Name, Department, Address, CreatedAt, deadline')
             .eq('Department', department)
             .eq('WorkStatus', 'Pending')
             .is('Eid', null)
