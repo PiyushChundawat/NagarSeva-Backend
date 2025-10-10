@@ -44,17 +44,12 @@ function Footer({name="NagarSeva"}){
                       </a>
                     </li>
                     <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <a href="/About" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-green rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">हमारे बारे में | About us</span>
                       </a>
                     </li>
-                    <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
-                        <div className="w-1 h-1 bg-orange-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
-                        <span className="text-sm">संपर्क | Contact</span>
-                      </a>
-                    </li>
+                
                  
                   </ul>
                 </div>
@@ -66,22 +61,22 @@ function Footer({name="NagarSeva"}){
                   </h4>
                   <ul className="space-y-3">
                     <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <a href="https://www.digitalindia.gov.in/" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-orange-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">डिजिटल इंडिया | Digital India</span>
                       </a>
                     </li>
                     <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <a href="https://www.mygov.in/" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-blue-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">माय गव | MyGov</span>
                       </a>
                     </li>
                    
                     <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <a href="https://allahabadmc.gov.in/CitizenHome.html" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-purple-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
-                        <span className="text-sm">स्मार्ट सिटी | Smart City</span>
+                        <span className="text-sm">प्रयागराज स्मार्ट सिटी |Prayagraj Smart City</span>
                       </a>
                     </li>
                   </ul>
@@ -109,8 +104,8 @@ function Footer({name="NagarSeva"}){
                   Made for {name} with ❤️ | Last Updated: October 2025 | Version 2.0.30
                 </p>
                 <div className="flex justify-center items-center space-x-2 mt-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-green-400">System Status: All Services Online</span>
+                  <div className="w-2 h-2 bg-green rounded-full animate-pulse"></div>
+                  <span className="text-xs text-green">System Status: All Services Online</span>
                 </div>
               </div>
             </div>
