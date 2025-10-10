@@ -6,6 +6,7 @@
   import Footer from "../../components/user/Footer.jsx";
   import { useAuth } from '../../context/AuthContext';  // Add this import
 
+import { FiAlertTriangle, FiUsers, FiThumbsUp, FiClock, FiCheck, FiPhone, FiMail, FiMapPin } from 'react-icons/fi';
 
 
   import CaffieneLogo from '../../assets/Caffiene.png'
@@ -176,62 +177,59 @@
             
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-          {services.map((service, index) => (
-        <div key={index} className="group relative ">
-                
-                
-                <div className="relative   bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden h-full transform  transition-all duration-500 ">
-        
-                  <div className="p-6 pb-4">
-                    <div className="flex items-start space-x-4 mb-4">
-                      <div className={`relative p-4 rounded-xl bg-green  shadow-lg transform  transition-transform duration-500`}>
-                        <AlertTriangle className="w-6 h-6 text-white"   />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">{service.title}</h3>
-                        <h4 className="text-sm font-semibold text-gray-600 mb-2">{service.englishTitle}</h4>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                    {services.map((service, index) => (
+                      <div key={index} className="group relative ">
                         
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <p className="text-gray-700 text-sm leading-relaxed">{service.description}</p>
-                      <p className="text-gray-500 text-xs leading-relaxed">{service.englishDesc}</p>
-                    </div>
-                  </div>
-                
-                  <div className="px-6 pb-4">
-                    <div className="space-y-2">
-                      {service.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
-                          <div className="w-4 h-4 bg-gradient-to-r from-green to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
+                        
+                        <div className="relative   bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden h-full transform  transition-all duration-500 ">
+                 
+                          <div className="p-6 pb-4">
+                            <div className="flex items-start space-x-4 mb-4">
+                              <div className={`relative p-4 rounded-xl bg-green  shadow-lg transform  transition-transform duration-500`}>
+                                <FiAlertTriangle className="w-6 h-6 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold text-gray-900 mb-1">{service.title}</h3>
+                                <h4 className="text-sm font-semibold text-gray-600 mb-2">{service.englishTitle}</h4>
+                                
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <p className="text-gray-700 text-sm leading-relaxed">{service.description}</p>
+                              <p className="text-gray-500 text-xs leading-relaxed">{service.englishDesc}</p>
+                            </div>
                           </div>
-                          <span>{feature}</span>
+                         
+                          <div className="px-6 pb-4">
+                            <div className="space-y-2">
+                              {service.features.map((feature, idx) => (
+                                <div key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
+                                  <div className="w-4 h-4 bg-gradient-to-r from-green to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <FiCheck className="w-2.5 h-2.5 text-white" />
+                                  </div>
+                                  <span>{feature}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                        
+                          <div className="p-6 pt-0">
+                            <Link
+                              id={`landing-service-${index}`}
+                              to={`/${service.link}`}
+                              className={`w-full bg-green text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:shadow-lg transform hover:bg-green-700 flex items-center justify-center space-x-2`}
+                            >
+                              
+                              <span>{service.englishTitle}</span>
+                            </Link>
+                          </div>
                         </div>
-                        
-                        
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                  
-                
-                    <div className="p-6 pt-0">
-                    
-                    <Link id={`service-${index}`} to={`/${service.link}`} className=
-                  {`w-full bg-green  text-white px-6 py-3 rounded-xl font-semibold
-                    transition-all duration-300 hover:shadow-lg transform hover:bg-green`}>
-                    {service.link}
-                    
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </Section>
 
         {/* Features Section */}

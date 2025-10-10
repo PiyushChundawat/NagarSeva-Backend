@@ -39,7 +39,7 @@ const fetchSLAViolations = async (employeeId) => {
 
 const toggleComplaintStatus = async (complaintId) => {
   try {
-    const response = await axios.patch(`${API_BASE_URL}/complaint/${complaintId}/toggle`);
+    const response = await axios.patch(`${API_BASE_URL}/complaint/toggle/${complaintId}`);
     
     if (response.data.success) {
       return response.data.data;

@@ -197,11 +197,13 @@ export default function LandingPage({ name  }) {
                 
               
                 <div className="p-6 pt-0">
-                  <Link id={`landing-service-${index}`} to={`/${service.link}`} className=
-                 {`w-full bg-green  text-white px-6 py-3 rounded-xl font-semibold
-                  transition-all duration-300 hover:shadow-lg transform hover:bg-green flex items-center justify-center space-x-2`}>
-                   <FiCheck className="w-5 h-5" />
-                   <span>{service.link}</span>
+                  <Link
+                    id={`landing-service-${index}`}
+                    to={service.link === 'Complaint' ? '/user/login' : `/${service.link}`}
+                    className={`w-full bg-green text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:shadow-lg transform hover:bg-green-700 flex items-center justify-center space-x-2`}
+                  >
+                    
+                    <span>{service.englishTitle}</span>
                   </Link>
                 </div>
               </div>
