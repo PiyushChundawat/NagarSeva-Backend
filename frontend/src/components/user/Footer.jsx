@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from 'react-router-dom';
 import CaffieneLogo from '../../assets/Caffiene.png'
 
 function Footer({name="NagarSeva"}){
@@ -38,16 +39,16 @@ function Footer({name="NagarSeva"}){
                   </h4>
                   <ul className="space-y-3">
                     <li>
-                      <a href="#" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <Link to="/" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-blue-500 rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">होम | Home</span>
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/About" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
+                      <Link to="/About" className="group flex items-center space-x-2 text-gray-300 hover:text-white transition-colors duration-300">
                         <div className="w-1 h-1 bg-green rounded-full group-hover:w-2 transition-all duration-300"></div>
                         <span className="text-sm">हमारे बारे में | About us</span>
-                      </a>
+                      </Link>
                     </li>
                 
                  
