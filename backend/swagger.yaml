@@ -1,0 +1,996 @@
+openapi: 3.0.0
+info:
+  title: Complaint Management System API
+  description: |
+    A comprehensive API for managing municipal complaints with SLA tracking, employee assignment, and analytics.
+    
+    ## Features
+    - Submit complaints with photo upload
+    - Automatic employee assignment based on workload
+    - SLA tracking and deadline management
+    - Manager dashboard with department analytics
+    - Employee complaint management
+    - Heatmap data for geographic visualization
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://nagarseva-backend.onrender.com
+    description: Production server
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Complaints
+    description: Complaint submission and management
+  - name: User
+    description: User-specific complaint queries
+  - name: Manager
+    description: Manager dashboard and department management
+  - name: Employee
+    description: Employee task management
+  - name: Analytics
+    description: System-wide analytics and statistics
+  - name: SLA
+    description: SLA tracking and violation management
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API server is running
+      responses:
+        '200':
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+                    example: Welcome to API with SLA Tracking
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /complaint:
+    post:
+      tags:
+        - Complaints
+      summary: Submit a new complaint
+      description: |
+        Submit a new complaint with optional photo. The system will:
+        - Upload photo to cloud storage
+        - Calculate SLA deadline based on department
+        - Automatically assign to available employee (if any)
+        - Set initial status as 'Pending' or 'In Progress'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Name
+                - Phone
+                - Address
+                - Department
+                - Description
+                - userId
+              properties:
+                Name:
+                  type: string
+                  description: Name of the person submitting complaint
+                  example: John Doe
+                Phone:
+                  type: string
+                  description: Contact phone number
+                  example: '+911234567890'
+                Address:
+                  type: string
+                  description: Location of the complaint
+                  example: 123 Main Street, City
+                Department:
+                  type: string
+                  description: Department code (DPT_W, DPT_E, DPT_PI, DPT_C)
+                  example: DPT_W
+                Description:
+                  type: string
+                  description: Detailed description of the complaint
+                  example: Water pipe leakage on main road
+                Latitude:
+                  type: number
+                  format: float
+                  description: GPS latitude coordinate
+                  example: 26.2389
+                Longitude:
+                  type: number
+                  format: float
+                  description: GPS longitude coordinate
+                  example: 78.1768
+                photoData:
+                  type: string
+                  description: Base64 encoded image data or data URI
+                  example: data:image/jpeg;base64,/9j/4AAQSkZJRg...
+                userId:
+                  type: string
+                  description: ID of the user submitting the complaint
+                  example: user_123abc
+      responses:
+        '200':
+          description: Complaint submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Complaint submitted and assigned successfully
+                  data:
+                    type: object
+                    properties:
+                      Cid:
+                        type: integer
+                        description: Complaint ID
+                        example: 42
+                      photoUrl:
+                        type: string
+                        nullable: true
+                        description: URL of uploaded photo
+                        example: https://storage.example.com/complaints/photo.jpg
+                      assignedTo:
+                        type: string
+                        nullable: true
+                        description: Employee ID assigned to complaint
+                        example: EMP_001
+                      status:
+                        type: string
+                        example: In Progress
+                      deadline:
+                        type: string
+                        format: date-time
+                        description: SLA deadline for complaint resolution
+                      slaStatus:
+                        type: string
+                        example: On Track
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /complaints/user/{userId}:
+    get:
+      tags:
+        - User
+      summary: Get all complaints by user
+      description: Retrieve all complaints submitted by a specific user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            example: user_123abc
+      responses:
+        '200':
+          description: List of user complaints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Found 5 complaints.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Complaint'
+        '400':
+          description: User ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /complaint/{id}:
+    get:
+      tags:
+        - Complaints
+      summary: Get complaint details by ID
+      description: Retrieve detailed information about a specific complaint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Complaint ID
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Complaint details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Complaint found successfully
+                  data:
+                    type: object
+                    properties:
+                      WorkStatus:
+                        type: string
+                        example: In Progress
+                      CreatedAt:
+                        type: string
+                        format: date-time
+                      Address:
+                        type: string
+                        example: 123 Main Street
+                      Eid:
+                        type: string
+                        nullable: true
+                        example: EMP_001
+                      Deadline:
+                        type: string
+                        format: date-time
+                      SLAStatus:
+                        type: string
+                        example: On Track
+                      SLAViolatedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      EmployeeName:
+                        type: string
+                        nullable: true
+                        example: Jane Smith
+                      Department:
+                        type: string
+                        example: DPT_W
+        '404':
+          description: Complaint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /complaint/toggle/{Cid}:
+    patch:
+      tags:
+        - Complaints
+      summary: Toggle complaint status
+      description: |
+        Toggle complaint status between 'In Progress' and 'Complete'.
+        When marked complete:
+        - Calculates time to resolve
+        - Updates SLA status
+        - Removes from employee's active tasks
+        - Auto-assigns pending complaint if employee has capacity
+      parameters:
+        - name: Cid
+          in: path
+          required: true
+          description: Complaint ID
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Status toggled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Status changed from In Progress to Complete
+                  data:
+                    $ref: '#/components/schemas/Complaint'
+                  autoAssignment:
+                    type: object
+                    nullable: true
+                    description: Details of auto-assigned complaint (if any)
+                    properties:
+                      newComplaintId:
+                        type: integer
+                        example: 45
+                      message:
+                        type: string
+                        example: Pending complaint #45 automatically assigned
+        '404':
+          description: Complaint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leaflet:
+    get:
+      tags:
+        - Analytics
+      summary: Get heatmap data
+      description: Get coordinates of all pending complaints for heatmap visualization
+      responses:
+        '200':
+          description: Heatmap coordinates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Found 15 pending complaints with coordinates
+                  count:
+                    type: integer
+                    example: 15
+                  data:
+                    type: array
+                    description: Array of [latitude, longitude] pairs
+                    items:
+                      type: array
+                      items:
+                        type: number
+                      example: [26.2389, 78.1768]
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Latitude:
+                          type: number
+                        Longitude:
+                          type: number
+                        Cid:
+                          type: integer
+
+  /trigger-sla-check:
+    post:
+      tags:
+        - SLA
+      summary: Manually trigger SLA check
+      description: |
+        Manually check and update SLA status for all active complaints.
+        Updates status based on time remaining:
+        - Violated: Past deadline
+        - Warning: Less than 6 hours remaining
+        - On Track: More than 6 hours remaining
+      responses:
+        '200':
+          description: SLA check completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: SLA check completed. 3 complaints updated.
+                  updatedCount:
+                    type: integer
+                    example: 3
+                  totalChecked:
+                    type: integer
+                    example: 25
+
+  /manager/{Eid}/profile:
+    get:
+      tags:
+        - Manager
+      summary: Get manager profile
+      description: Get profile information for a manager including department details
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: Manager profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      Eid:
+                        type: string
+                        example: MGR_001
+                      Name:
+                        type: string
+                        example: John Manager
+                      DeptId:
+                        type: string
+                        example: DPT_W
+                      DepartmentName:
+                        type: string
+                        example: Water Department
+                      DepartmentCode:
+                        type: string
+                        example: DPT_W
+                      role:
+                        type: string
+                        example: manager
+        '404':
+          description: Manager not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /manager/{Eid}/workers:
+    get:
+      tags:
+        - Manager
+      summary: Get department workers
+      description: Get all employees working under the manager's department
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: List of workers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Eid:
+                          type: string
+                        Name:
+                          type: string
+                        DeptId:
+                          type: string
+                        role:
+                          type: string
+                        AssignCid:
+                          type: array
+                          items:
+                            type: integer
+                  count:
+                    type: integer
+                    example: 10
+
+  /manager/{Eid}/complaints:
+    get:
+      tags:
+        - Manager
+      summary: Get department complaints
+      description: Get all complaints in the manager's department
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: List of complaints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Complaint'
+                  count:
+                    type: integer
+                    example: 50
+
+  /manager/{Eid}/stats:
+    get:
+      tags:
+        - Manager
+      summary: Get department statistics
+      description: Get comprehensive statistics for the manager's department
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: Department statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalWorkers:
+                        type: integer
+                        example: 10
+                      totalComplaints:
+                        type: integer
+                        example: 150
+                      pendingComplaints:
+                        type: integer
+                        example: 20
+                      inProgressComplaints:
+                        type: integer
+                        example: 30
+                      completedComplaints:
+                        type: integer
+                        example: 100
+                      sla:
+                        type: object
+                        properties:
+                          violations:
+                            type: integer
+                            example: 5
+                          warnings:
+                            type: integer
+                            example: 10
+                          onTrack:
+                            type: integer
+                            example: 35
+                          complianceRate:
+                            type: string
+                            example: '93.3'
+
+  /manager/{Eid}/sla-violations:
+    get:
+      tags:
+        - SLA
+        - Manager
+      summary: Get SLA violations for department
+      description: Get all SLA violations and warnings in the manager's department
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: SLA violations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      pendingViolations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Complaint'
+                      inProgressViolations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Complaint'
+                      warnings:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Complaint'
+                  counts:
+                    type: object
+                    properties:
+                      pendingViolations:
+                        type: integer
+                        example: 2
+                      inProgressViolations:
+                        type: integer
+                        example: 3
+                      warnings:
+                        type: integer
+                        example: 5
+                      total:
+                        type: integer
+                        example: 10
+
+  /manager/{Eid}/heatmap:
+    get:
+      tags:
+        - Manager
+        - Analytics
+      summary: Get department heatmap data
+      description: Get coordinates of all complaints in the manager's department for heatmap
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Manager Employee ID
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: Heatmap data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    description: Array of [latitude, longitude, intensity]
+                    items:
+                      type: array
+                      items:
+                        type: number
+                      example: [26.2389, 78.1768, 1]
+                  count:
+                    type: integer
+                    example: 25
+
+  /manager/complaint/{Cid}:
+    delete:
+      tags:
+        - Manager
+      summary: Delete a complaint
+      description: |
+        Delete a complaint from the manager's department.
+        Only complaints with status 'Pending' or 'In Progress' can be deleted.
+        Automatically removes complaint from assigned employee's task list.
+      parameters:
+        - name: Cid
+          in: path
+          required: true
+          description: Complaint ID
+          schema:
+            type: integer
+            example: 42
+        - name: managerId
+          in: query
+          required: true
+          description: Manager's Employee ID for authorization
+          schema:
+            type: string
+            example: MGR_001
+      responses:
+        '200':
+          description: Complaint deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Complaint deleted successfully
+        '403':
+          description: Unauthorized or invalid status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Complaint not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/{Eid}/complaints:
+    get:
+      tags:
+        - Employee
+      summary: Get employee's assigned complaints
+      description: Get all complaints assigned to a specific employee
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Employee ID
+          schema:
+            type: string
+            example: EMP_001
+      responses:
+        '200':
+          description: List of assigned complaints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Complaint'
+                  employee:
+                    type: object
+                    properties:
+                      Eid:
+                        type: string
+                      Name:
+                        type: string
+                      DeptId:
+                        type: string
+                      role:
+                        type: string
+                  count:
+                    type: integer
+                    example: 5
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/{Eid}/sla-violations:
+    get:
+      tags:
+        - SLA
+        - Employee
+      summary: Get employee's SLA violations
+      description: Get all SLA violations and warnings for complaints assigned to the employee
+      parameters:
+        - name: Eid
+          in: path
+          required: true
+          description: Employee ID
+          schema:
+            type: string
+            example: EMP_001
+      responses:
+        '200':
+          description: SLA violations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      violations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Complaint'
+                      warnings:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Complaint'
+                  counts:
+                    type: object
+                    properties:
+                      violations:
+                        type: integer
+                        example: 1
+                      warnings:
+                        type: integer
+                        example: 2
+                      total:
+                        type: integer
+                        example: 3
+
+  /analytics:
+    get:
+      tags:
+        - Analytics
+      summary: Get system-wide analytics
+      description: Get comprehensive analytics for all complaints across all departments
+      responses:
+        '200':
+          description: System analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: object
+                    properties:
+                      complaints:
+                        type: integer
+                        example: 500
+                      complete:
+                        type: integer
+                        example: 350
+                      pending:
+                        type: integer
+                        example: 75
+                      inProgress:
+                        type: integer
+                        example: 75
+                  byDepartment:
+                    type: object
+                    properties:
+                      water:
+                        $ref: '#/components/schemas/DepartmentStats'
+                      electricity:
+                        $ref: '#/components/schemas/DepartmentStats'
+                      publicInfrastructure:
+                        $ref: '#/components/schemas/DepartmentStats'
+                      cleanliness:
+                        $ref: '#/components/schemas/DepartmentStats'
+
+components:
+  schemas:
+    Complaint:
+      type: object
+      properties:
+        Cid:
+          type: integer
+          description: Unique complaint ID
+          example: 42
+        Name:
+          type: string
+          example: John Doe
+        Phone:
+          type: string
+          example: '+911234567890'
+        Address:
+          type: string
+          example: 123 Main Street
+        Department:
+          type: string
+          example: DPT_W
+        Description:
+          type: string
+          example: Water pipe leakage on main road
+        PhotoUrl:
+          type: string
+          nullable: true
+          example: https://storage.example.com/complaints/photo.jpg
+        Latitude:
+          type: number
+          format: float
+          example: 26.2389
+        Longitude:
+          type: number
+          format: float
+          example: 78.1768
+        userId:
+          type: string
+          example: user_123abc
+        Eid:
+          type: string
+          nullable: true
+          description: Assigned employee ID
+          example: EMP_001
+        WorkStatus:
+          type: string
+          enum: [Pending, In Progress, Complete]
+          example: In Progress
+        CreatedAt:
+          type: string
+          format: date-time
+        deadline:
+          type: string
+          format: date-time
+        slastatus:
+          type: string
+          enum: [On Track, Warning, Violated, Completed]
+          example: On Track
+        slaviolatedat:
+          type: string
+          format: date-time
+          nullable: true
+        timetoresolve:
+          type: string
+          nullable: true
+          example: 2 hours 30 minutes
+
+    DepartmentStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 125
+        complete:
+          type: integer
+          example: 90
+        pending:
+          type: integer
+          example: 15
+        inProgress:
+          type: integer
+          example: 20
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message description
+        error:
+          type: string
+          nullable: true
+          example: Detailed error information

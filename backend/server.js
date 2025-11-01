@@ -2,6 +2,8 @@ import express from "express";
 import { createClient } from '@supabase/supabase-js';
 import cors from "cors";
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 dotenv.config();
 
@@ -22,6 +24,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+const swaggerDocument = YAML.load('./swagger.yaml');
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Health check endpoint
 app.get("/", (req, res) => {
