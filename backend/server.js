@@ -14,7 +14,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("❌ Missing Supabase credentials in environment variables");
+  console.error("Missing Supabase credentials in environment variables");
   process.exit(1);
 }
 
@@ -23,6 +23,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Health check endpoint
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
@@ -31,6 +32,7 @@ app.get("/", (req, res) => {
   });
 });
 
+// Calculate complaint deadline based on department SLA hours
 async function calculateDeadline(department, createdAt) {
   try {
     const { data: deptData, error } = await supabase
@@ -40,7 +42,7 @@ async function calculateDeadline(department, createdAt) {
       .single();
 
     if (error || !deptData) {
-      console.warn(`⚠️ Department ${department} not found, using default 48 hours`);
+      console.warn(`Department ${department} not found, using default 48 hours`);
       const slaHours = 48;
       const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
       return deadline.toISOString();
@@ -48,8 +50,6 @@ async function calculateDeadline(department, createdAt) {
 
     const slaHours = deptData.SLAHours || 48;
     const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
-    
-    console.log(`📅 Calculated deadline: ${deadline.toISOString()} (${slaHours} hours from ${createdAt})`);
     
     return deadline.toISOString();
   } catch (err) {
@@ -59,6 +59,7 @@ async function calculateDeadline(department, createdAt) {
   }
 }
 
+// Submit a new complaint with photo upload and automatic employee assignment
 app.post("/complaint", async (req, res) => {
   try {
     const {
@@ -72,10 +73,6 @@ app.post("/complaint", async (req, res) => {
       photoData,
       userId
     } = req.body;
-
-    console.log("📝 Received complaint submission");
-    console.log("Department:", Department);
-    console.log("Has photo:", !!photoData);
 
     if (!userId) {
       return res.status(400).json({
@@ -93,10 +90,9 @@ app.post("/complaint", async (req, res) => {
 
     let photoUrl = null;
    
+    // Handle photo upload to Supabase storage
     if (photoData) {
       try {
-        console.log("📸 Processing image upload...");
-        
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
         const fileName = `complaint_${timestamp}_${randomStr}.jpg`;
@@ -114,12 +110,6 @@ app.post("/complaint", async (req, res) => {
         }
         
         const fileBuffer = Buffer.from(base64Data, 'base64');
-        
-        console.log("📊 Upload details:", {
-          fileName,
-          size: `${(fileBuffer.length / 1024).toFixed(2)} KB`,
-          contentType
-        });
        
         const { data: uploadData, error: uploadError } = await supabase
           .storage
@@ -131,11 +121,9 @@ app.post("/complaint", async (req, res) => {
           });
        
         if (uploadError) {
-          console.error("❌ Upload error:", uploadError);
+          console.error("Upload error:", uploadError);
           throw uploadError;
         }
-       
-        console.log("✅ Upload successful");
        
         const { data: urlData } = supabase
           .storage
@@ -143,10 +131,9 @@ app.post("/complaint", async (req, res) => {
           .getPublicUrl(filePath);
        
         photoUrl = urlData.publicUrl;
-        console.log("🔗 Photo URL:", photoUrl);
         
       } catch (photoError) {
-        console.error("❌ Photo error:", photoError.message);
+        console.error("Photo error:", photoError.message);
         photoUrl = null;
       }
     }
@@ -158,25 +145,17 @@ app.post("/complaint", async (req, res) => {
     let workStatus = 'Pending';
     let assignmentMessage = "Complaint submitted successfully";
 
-    console.log("🔍 Finding employees in department:", Department);
-    
+    // Find and assign employee with least active tasks
     const { data: employees, error: employeeError } = await supabase
       .from('EmployeeProfile')
       .select('Eid, AssignCid, AssignHistory, DeptId, Name')
       .eq('DeptId', Department);
 
-    console.log("Query result:", { 
-      employees: employees?.length || 0, 
-      error: employeeError?.message || 'none' 
-    });
-
     if (employeeError) {
-      console.error("❌ Employee query error:", employeeError);
+      console.error("Employee query error:", employeeError);
     }
 
     if (!employeeError && employees && employees.length > 0) {
-      console.log("👥 Found", employees.length, "employees");
-      
       let selectedEmployee = null;
       let minTasks = 5;
 
@@ -191,8 +170,6 @@ app.post("/complaint", async (req, res) => {
           }
         }
 
-        console.log(`Employee ${employee.Eid}: ${currentTasks} tasks`);
-
         if (currentTasks < minTasks) {
           minTasks = currentTasks;
           selectedEmployee = employee;
@@ -203,15 +180,10 @@ app.post("/complaint", async (req, res) => {
         assignedEid = selectedEmployee.Eid;
         workStatus = 'In Progress';
         assignmentMessage = "Complaint submitted and assigned successfully";
-        console.log("✅ Selected employee:", assignedEid, "with", minTasks, "tasks");
-      } else {
-        console.log("⚠️ No employee selected - all have 5+ tasks");
       }
-    } else {
-      console.log("⚠️ No employees found for department:", Department);
     }
 
-    console.log("💾 Saving complaint with SLA tracking...");
+    // Insert complaint into database
     const { data: complaintData, error: complaintError } = await supabase
       .from('complaints')
       .insert([
@@ -236,7 +208,7 @@ app.post("/complaint", async (req, res) => {
       .single();
    
     if (complaintError) {
-      console.error("❌ Database error:", complaintError);
+      console.error("Database error:", complaintError);
       return res.status(500).json({
         success: false,
         message: "Error submitting complaint",
@@ -244,12 +216,8 @@ app.post("/complaint", async (req, res) => {
       });
     }
 
-    console.log("✅ Complaint saved with Cid:", complaintData.Cid);
-    console.log("📅 Deadline set to:", deadline);
-
+    // Update employee's assigned complaints and history
     if (assignedEid && complaintData && complaintData.Cid) {
-      console.log("🔄 Updating employee assignment...");
-      
       const selectedEmployee = employees.find(emp => emp.Eid === assignedEid);
       
       if (selectedEmployee) {
@@ -292,24 +260,19 @@ app.post("/complaint", async (req, res) => {
           updatedHistory = [historyEntry];
         }
 
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('EmployeeProfile')
           .update({ 
             AssignCid: updatedAssignCid,
             AssignHistory: updatedHistory
           })
-          .eq('Eid', assignedEid)
-          .select();
+          .eq('Eid', assignedEid);
 
         if (updateError) {
-          console.error("❌ Employee update error:", updateError);
-        } else {
-          console.log("✅ Employee updated:", updateData);
+          console.error("Employee update error:", updateError);
         }
       }
     }
-   
-    console.log("🎉 Success!");
     
     res.status(200).json({
       success: true,
@@ -324,8 +287,7 @@ app.post("/complaint", async (req, res) => {
       }
     });  
   } catch(err) {
-    console.error("❌ ERROR:", err.message);
-    console.error("Stack:", err.stack);
+    console.error("ERROR:", err.message);
     res.status(500).json({
       success: false,
       message: "Error submitting complaint",
@@ -334,12 +296,10 @@ app.post("/complaint", async (req, res) => {
   }
 });
 
+// Get all complaints submitted by a specific user
 app.get("/complaints/user/:userId", async(req, res) => {
   try {
-    console.log("=== USER COMPLAINTS ENDPOINT HIT ===");
     const userId = req.params.userId;
-   
-    console.log("🔍 Fetching complaints for user:", userId);
 
     if (!userId || userId.trim() === '') {
       return res.status(400).json({
@@ -355,14 +315,12 @@ app.get("/complaints/user/:userId", async(req, res) => {
       .order('CreatedAt', { ascending: false });
 
     if (error) {
-      console.error("❌ Database error:", error);
+      console.error("Database error:", error);
       return res.status(500).json({
         success: false,
         message: error.message
       });
     }
-
-    console.log(`✅ Found ${data.length} complaints for user ${userId}`);
 
     res.status(200).json({
       success: true,
@@ -370,7 +328,7 @@ app.get("/complaints/user/:userId", async(req, res) => {
       data: data
     });
   } catch(err) {
-    console.error("❌ Server error:", err);
+    console.error("Server error:", err);
     res.status(500).json({
       success: false,
       message: err.message
@@ -378,10 +336,9 @@ app.get("/complaints/user/:userId", async(req, res) => {
   }
 });
 
+// Get detailed information for a specific complaint by ID
 app.get("/complaint/:id", async(req, res) => {
   try {
-    console.log("=== COMPLAINT ENDPOINT HIT ===");
-   
     let cidString = req.params.id || '';
     if (cidString.startsWith(':')) {
       cidString = cidString.substring(1);
@@ -404,9 +361,7 @@ app.get("/complaint/:id", async(req, res) => {
         Address,
         Eid,
         deadline,
-
-       slastatus,
-
+        slastatus,
         slaviolatedat,
         EmployeeProfile:Eid (
           Name,
@@ -457,10 +412,9 @@ app.get("/complaint/:id", async(req, res) => {
   }
 });
 
+// Get coordinates of all pending complaints for heatmap visualization
 app.get("/leaflet", async(req, res) => {
   try {
-    console.log("=== LEAFLET ENDPOINT HIT ===");
-
     const { data, error } = await supabase
       .from('complaints')
       .select('Latitude, Longitude, Cid')
@@ -504,25 +458,19 @@ app.get("/leaflet", async(req, res) => {
   }
 });
 
+// Toggle complaint status between 'In Progress' and 'Complete'
+// Automatically assigns pending complaints to employee when task is completed
 app.patch("/complaint/toggle/:Cid", async(req, res) => {
   try {
-    console.log("=== PATCH ENDPOINT HIT ===");
-    console.log("Raw params:", req.params);
-    console.log("Full URL:", req.originalUrl);
-   
     let cidString = req.params.Cid || '';
-    console.log("Original cidString:", cidString, "Type:", typeof cidString);
     
     if (cidString.startsWith(':')) {
       cidString = cidString.substring(1);
-      console.log("Removed colon, new cidString:", cidString);
     }
    
     const Cid = parseInt(cidString, 10);
-    console.log("Parsed Cid:", Cid, "Is valid:", !isNaN(Cid) && Cid > 0);
    
     if (isNaN(Cid) || Cid <= 0) {
-      console.error("Invalid Cid validation failed");
       return res.status(400).json({
         success: false,
         message: 'Invalid complaint ID. Must be a positive number.',
@@ -530,17 +478,11 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
       });
     }
 
-    console.log("=== FETCHING CURRENT COMPLAINT ===");
-    console.log("Looking for complaint with Cid:", Cid);
-   
     const { data: currentComplaint, error: fetchError } = await supabase
       .from('complaints')
       .select('WorkStatus, Eid, Department, CreatedAt, deadline, slastatus')
       .eq('Cid', Cid)
       .single();
-   
-    console.log("Fetch result:", currentComplaint);
-    console.log("Fetch error:", fetchError);
    
     if (fetchError || !currentComplaint) {
       console.error("Complaint not found:", fetchError);
@@ -551,13 +493,8 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
         cid: Cid
       });
     }
-
-    console.log("=== CURRENT COMPLAINT DATA ===");
-    console.log("Current WorkStatus:", currentComplaint.WorkStatus);
-    console.log("Current slastatus:", currentComplaint.slastatus);
    
     const newStatus = currentComplaint.WorkStatus === 'In Progress' ? 'Complete' : 'In Progress';
-    console.log("New status will be:", newStatus);
     
     let timeToResolve = null;
     if (newStatus === 'Complete') {
@@ -567,7 +504,6 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       timeToResolve = `${diffHours} hours ${diffMins} minutes`;
-      console.log("Time to resolve:", timeToResolve);
     }
 
     const updatePayload = {
@@ -575,10 +511,6 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
       slastatus: newStatus === 'Complete' ? 'Completed' : currentComplaint.slastatus,
       timetoresolve: timeToResolve
     };
-
-    console.log("=== ATTEMPTING UPDATE ===");
-    console.log("Update payload:", JSON.stringify(updatePayload, null, 2));
-    console.log("Updating complaint Cid:", Cid);
    
     const { data: updatedComplaint, error: updateError } = await supabase
       .from('complaints')
@@ -587,36 +519,20 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
       .select()
       .single();
    
-    console.log("=== UPDATE RESULT ===");
-    console.log("Updated complaint data:", updatedComplaint);
-    console.log("Update error:", updateError);
-   
     if (updateError) {
-      console.error("=== DATABASE UPDATE ERROR ===");
-      console.error("Error object:", JSON.stringify(updateError, null, 2));
-      console.error("Error message:", updateError.message);
-      console.error("Error details:", updateError.details);
-      console.error("Error hint:", updateError.hint);
-      console.error("Error code:", updateError.code);
+      console.error("Database update error:", updateError);
       
       return res.status(500).json({
         success: false,
         message: 'Complaint Update Error.',
-        error: updateError.message,
-        details: updateError.details,
-        hint: updateError.hint,
-        code: updateError.code,
-        payload: updatePayload
+        error: updateError.message
       });
     }
 
-    console.log("✅ Complaint updated successfully");
-
     let autoAssignmentInfo = null;
     
+    // Auto-assign pending complaint when employee completes a task
     if (newStatus === 'Complete' && currentComplaint.Eid) {
-      console.log("🔄 Employee completed a task, checking for pending complaints...");
-      
       const employeeId = currentComplaint.Eid;
       const department = currentComplaint.Department;
 
@@ -640,16 +556,12 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
           }
         }
 
-        console.log(`📊 Employee ${employeeId} now has ${updatedAssignCid.length} active tasks`);
-
         await supabase
           .from('EmployeeProfile')
           .update({ AssignCid: updatedAssignCid })
           .eq('Eid', employeeId);
 
         if (updatedAssignCid.length < 5) {
-          console.log("✅ Employee has capacity, checking for pending complaints...");
-
           const { data: pendingComplaints, error: pendingError } = await supabase
             .from('complaints')
             .select('Cid, Name, Department, Address, CreatedAt, deadline')
@@ -661,7 +573,6 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
 
           if (!pendingError && pendingComplaints && pendingComplaints.length > 0) {
             const pendingComplaint = pendingComplaints[0];
-            console.log(`🎯 Found pending complaint ${pendingComplaint.Cid}, assigning to employee ${employeeId}`);
 
             const { error: assignError } = await supabase
               .from('complaints')
@@ -707,23 +618,17 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
                 .eq('Eid', employeeId);
 
               if (!updateEmpError) {
-                console.log("✅ Pending complaint auto-assigned successfully");
                 autoAssignmentInfo = {
                   newComplaintId: pendingComplaint.Cid,
                   message: `Pending complaint #${pendingComplaint.Cid} automatically assigned`
                 };
               }
             }
-          } else {
-            console.log("ℹ️ No pending complaints found for auto-assignment");
           }
-        } else {
-          console.log("⚠️ Employee at capacity, no auto-assignment");
         }
       }
     }
    
-    console.log("=== SENDING SUCCESS RESPONSE ===");
     res.status(200).json({
       success: true,
       message: `Status changed from ${currentComplaint.WorkStatus} to ${newStatus}`,
@@ -731,23 +636,20 @@ app.patch("/complaint/toggle/:Cid", async(req, res) => {
       autoAssignment: autoAssignmentInfo
     });
   } catch(err) {
-    console.error("=== CATCH BLOCK ERROR ===");
-    console.error("Error:", err);
-    console.error("Error stack:", err.stack);
+    console.error("Catch block error:", err);
     res.status(500).json({
       success: false,
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      message: err.message
     });
   }
 });
 
-// Manager SLA Violations - SIMPLE VERSION
+// Get SLA violations for a manager's department
+// Returns pending violations, in-progress violations, and warnings
 app.get("/manager/:Eid/sla-violations", async(req, res) => {
   try {
     const Eid = req.params.Eid;
     
-    // Get manager's department
     const { data: manager } = await supabase
       .from('EmployeeProfile')
       .select('DeptId')
@@ -761,7 +663,6 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
       });
     }
     
-    // Simple query - just fetch Violated complaints from database
     const { data: pendingViolations } = await supabase
       .from('complaints')
       .select('*')
@@ -805,12 +706,13 @@ app.get("/manager/:Eid/sla-violations", async(req, res) => {
     });
   }
 });
-// Employee SLA Violations - SIMPLE VERSION
+
+// Get SLA violations for a specific employee
+// Returns violations and warnings for complaints assigned to the employee
 app.get("/employee/:Eid/sla-violations", async(req, res) => {
   try {
     const Eid = req.params.Eid;
     
-    // Simple query - just fetch Violated complaints assigned to this employee
     const { data: violations } = await supabase
       .from('complaints')
       .select('*')
@@ -846,24 +748,24 @@ app.get("/employee/:Eid/sla-violations", async(req, res) => {
   }
 });
 
+// Manually trigger SLA status check for all active complaints
+// Updates SLA status based on deadline proximity
 app.post("/trigger-sla-check", async(req, res) => {
   try {
-    console.log("🔄 Manual SLA check triggered");
-    
     const now = new Date();
     
     const { data: allComplaints, error: fetchErr } = await supabase
       .from('complaints')
       .select('Cid, deadline, WorkStatus, slastatus, CreatedAt')
       .in('WorkStatus', ['Pending', 'In Progress']);
-    if (fetchErr) {  // ✅ ADDED
-  console.error("❌ Error fetching complaints:", fetchErr);
-  return res.status(500).json({
-    success: false,
-    message: 'Failed to fetch complaints'
-  });
-}
-    console.log(`📊 Found ${allComplaints?.length || 0} active complaints`);  // ✅ ADDED
+    
+    if (fetchErr) {
+      console.error("Error fetching complaints:", fetchErr);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch complaints'
+      });
+    }
     
     let updatedCount = 0;
     
@@ -887,19 +789,19 @@ app.post("/trigger-sla-check", async(req, res) => {
       }
       
       if (newSLAStatus !== complaint.slastatus) {
-        const{ error: updateErr } = await supabase
+        const { error: updateErr } = await supabase
           .from('complaints')
           .update({
             slastatus: newSLAStatus,
             slaviolatedat: slaViolatedAt
           })
           .eq('Cid', complaint.Cid);
-        if (updateErr) {  // ✅ ADDED
-    console.error(`❌ Failed to update complaint ${complaint.Cid}:`, updateErr);
-  } else {
-    console.log(`✅ Updated complaint ${complaint.Cid}`);
-    updatedCount++;
-  }
+        
+        if (updateErr) {
+          console.error(`Failed to update complaint ${complaint.Cid}:`, updateErr);
+        } else {
+          updatedCount++;
+        }
       }
     }
     
@@ -918,13 +820,10 @@ app.post("/trigger-sla-check", async(req, res) => {
   }
 });
 
+// Get manager profile information including department details
 app.get("/manager/:Eid/profile", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-   
-    console.log("=== MANAGER PROFILE ENDPOINT HIT ===");
-    console.log("Manager Eid:", Eid);
-   
 
     const { data: managerProfile, error: profileError } = await supabase
       .from('EmployeeProfile')
@@ -941,7 +840,6 @@ app.get("/manager/:Eid/profile", async(req, res) => {
       });
     }
 
-
     let departmentName = null;
     if (managerProfile.DeptId) {
       const { data: deptData } = await supabase
@@ -951,9 +849,7 @@ app.get("/manager/:Eid/profile", async(req, res) => {
         .single();
       
       departmentName = deptData?.DeptName;
-      console.log("Department:", departmentName);
     }
-   
 
     const responseData = {
       ...managerProfile,
@@ -974,11 +870,10 @@ app.get("/manager/:Eid/profile", async(req, res) => {
   }
 });
 
+// Get all employees working under a manager's department
 app.get("/manager/:Eid/workers", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
-    console.log("=== MANAGER WORKERS ENDPOINT HIT ===");
     
     const { data: manager, error: managerError } = await supabase
       .from('EmployeeProfile')
@@ -1022,13 +917,10 @@ app.get("/manager/:Eid/workers", async(req, res) => {
   }
 });
 
+// Get all complaints in a manager's department with employee details
 app.get("/manager/:Eid/complaints", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-   
-    console.log("=== MANAGER COMPLAINTS ENDPOINT HIT ===");
-    console.log("Manager Eid:", Eid);
-   
 
     const { data: manager, error: managerError } = await supabase
       .from('EmployeeProfile')
@@ -1043,9 +935,6 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
         message: 'Manager not found'
       });
     }
-   
-    console.log("Manager's DeptId:", manager.DeptId);
-   
 
     const { data: complaints, error: complaintsError } = await supabase
       .from('complaints')
@@ -1056,9 +945,7 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
           Eid
         )
       `)
-
-      .eq('Department', manager.DeptId)  // ✅ Match with DeptId directly
-
+      .eq('Department', manager.DeptId)
       .order('CreatedAt', { ascending: false });
    
     if (complaintsError) {
@@ -1068,8 +955,6 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
         message: 'Failed to fetch complaints'
       });
     }
-   
-    console.log("Complaints found:", complaints?.length || 0);
    
     res.status(200).json({
       success: true,
@@ -1085,11 +970,10 @@ app.get("/manager/:Eid/complaints", async(req, res) => {
   }
 });
 
+// Get statistics for a manager's department including worker count and complaint metrics
 app.get("/manager/:Eid/stats", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
-    console.log("=== MANAGER STATS ENDPOINT HIT ===");
     
     const { data: manager } = await supabase
       .from('EmployeeProfile')
@@ -1191,13 +1075,12 @@ app.get("/manager/:Eid/stats", async(req, res) => {
   }
 });
 
-
+// Delete a complaint from manager's department (only In Progress or Pending status)
+// Removes complaint from assigned employee's task list
 app.delete("/manager/complaint/:Cid", async(req, res) => {
   try {
     const Cid = parseInt(req.params.Cid, 10);
     const { managerId } = req.query;
-    
-    console.log("=== MANAGER DELETE COMPLAINT ===");
     
     if (isNaN(Cid) || Cid <= 0) {
       return res.status(400).json({
@@ -1310,11 +1193,10 @@ app.delete("/manager/complaint/:Cid", async(req, res) => {
   }
 });
 
+// Get heatmap data for all complaints in manager's department
 app.get("/manager/:Eid/heatmap", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
-    console.log("=== MANAGER HEATMAP ENDPOINT ===");
     
     const { data: manager } = await supabase
       .from('EmployeeProfile')
@@ -1362,7 +1244,7 @@ app.get("/manager/:Eid/heatmap", async(req, res) => {
   }
 });
 
-
+// Get comprehensive analytics for all complaints across all departments
 app.get("/analytics", async(req, res) => {
   try {
     const { count: totalComplaints } = await supabase
@@ -1507,7 +1389,7 @@ app.get("/analytics", async(req, res) => {
           total: totalComplaintsCleanliness,
           complete: totalCleanlinessComplete,
           pending: totalCleanlinessPending,
-          inProgress: totalCleanlinessInProgress
+          inProgress: totalCleanтабCleanlinessInProgress
         }
       }
     });
@@ -1520,13 +1402,10 @@ app.get("/analytics", async(req, res) => {
   }
 });
 
+// Get all complaints assigned to a specific employee
 app.get("/employee/:Eid/complaints", async(req, res) => {
   try {
     const Eid = req.params.Eid;
-    
-    console.log("==========================================");
-    console.log("📋 Fetching complaints for employee:", Eid);
-    console.log("==========================================");
    
     const { data: employeeData, error: empError } = await supabase
       .from('EmployeeProfile')
@@ -1535,15 +1414,13 @@ app.get("/employee/:Eid/complaints", async(req, res) => {
       .single();
    
     if (empError) {
-      console.error("❌ Employee not found:", empError);
+      console.error("Employee not found:", empError);
       return res.status(404).json({
         success: false,
         message: 'Employee not found.',
         error: empError.message
       });
     }
-    
-    console.log("✅ Employee found:", employeeData.Name);
    
     const { data: assignedComplaints, error: fetchError } = await supabase
       .from('complaints')
@@ -1552,16 +1429,13 @@ app.get("/employee/:Eid/complaints", async(req, res) => {
       .order('CreatedAt', { ascending: false });
    
     if (fetchError) {
-      console.error("❌ Database error fetching complaints:", fetchError);
+      console.error("Database error fetching complaints:", fetchError);
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch complaints for employee.',
         error: fetchError.message
       });
     }
-    
-    console.log("📊 Complaints found:", assignedComplaints?.length || 0);
-    console.log("==========================================");
    
     res.status(200).json({
       success: true,
@@ -1570,7 +1444,7 @@ app.get("/employee/:Eid/complaints", async(req, res) => {
       count: assignedComplaints?.length || 0
     });
   } catch(err) {
-    console.error("❌ Server error:", err);
+    console.error("Server error:", err);
     res.status(500).json({
       success: false,
       message: err.message
@@ -1578,6 +1452,7 @@ app.get("/employee/:Eid/complaints", async(req, res) => {
   }
 });
 
+// Handle 404 for undefined routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
