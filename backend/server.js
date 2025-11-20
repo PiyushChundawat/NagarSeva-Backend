@@ -1394,7 +1394,7 @@ app.get("/analytics", async(req, res) => {
           total: totalComplaintsCleanliness,
           complete: totalCleanlinessComplete,
           pending: totalCleanlinessPending,
-          inProgress: totalCleanтабCleanlinessInProgress
+          inProgress: totalCleanlinessInProgress
         }
       }
     });
