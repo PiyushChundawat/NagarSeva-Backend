@@ -1,9 +1,10 @@
+// src/components/ProtectedRoute.jsx
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 
-const ProtectedRoute = ({ children, allowedRoles = [], userType = 'user' }) => {
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
   const [authorized, setAuthorized] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -17,17 +18,15 @@ const ProtectedRoute = ({ children, allowedRoles = [], userType = 'user' }) => {
         return;
       }
 
-      // If this is a regular USER route (not official/employee)
-      // Regular users just need to be authenticated, no role check needed
-      if (userType === 'user' || allowedRoles.length === 0) {
+      // If no specific roles required, just check if user is authenticated
+      if (allowedRoles.length === 0) {
         setAuthorized(true);
-        setUserRole('user');
         setCheckingRole(false);
         return;
       }
 
-      // If this is an OFFICIAL/EMPLOYEE route, check EmployeeProfile table
       try {
+        // Fetch user profile from EmployeeProfile table
         const { data: profile, error } = await supabase
           .from('EmployeeProfile')
           .select('role')
@@ -35,13 +34,13 @@ const ProtectedRoute = ({ children, allowedRoles = [], userType = 'user' }) => {
           .single();
 
         if (error || !profile) {
-          console.error('Error fetching employee profile:', error);
+          console.error('Error fetching profile:', error);
           setAuthorized(false);
           setCheckingRole(false);
           return;
         }
 
-        console.log('✅ Employee authenticated, Role:', profile.role);
+        console.log('✅ User authenticated, Role:', profile.role);
         setUserRole(profile.role);
 
         // Check if user's role is in allowed roles
@@ -60,7 +59,7 @@ const ProtectedRoute = ({ children, allowedRoles = [], userType = 'user' }) => {
     };
 
     checkUserRole();
-  }, [user, allowedRoles, userType]);
+  }, [user, allowedRoles]);
 
   // Show loading spinner while checking authentication
   if (loading || checkingRole) {
@@ -89,7 +88,7 @@ const ProtectedRoute = ({ children, allowedRoles = [], userType = 'user' }) => {
           <p className="text-gray-600 mb-4">
             You don't have permission to access this page.
           </p>
-          {userRole && userRole !== 'user' && (
+          {userRole && (
             <p className="text-sm text-gray-500">
               Required role: {allowedRoles.join(' or ')} | Your role: {userRole}
             </p>
