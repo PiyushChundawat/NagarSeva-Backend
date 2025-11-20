@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
@@ -14,8 +14,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { signIn, signOut, user } = useAuth();
-
+  const { signIn, signOut } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -51,16 +50,28 @@ const Login = () => {
         return;
       }
 
-      // Fetch user profile from EmployeeProfile table
-      const { data: profile, error: profileError } = await supabase
+      // ✅ FIX: Fetch ALL employee profiles and find by matching auth user ID
+      // This works if the Eid in EmployeeProfile matches the Supabase Auth user ID
+      const { data: profiles, error: profileError } = await supabase
         .from('EmployeeProfile')
-        .select('role')
-        .eq('Eid', loginData.user.id)
-        .single();
+        .select('role, Eid, Name, DeptId');
 
-      if (profileError || !profile) {
-        toast.error('User profile not found. Please contact administrator.');
-        setError('User profile not found. Please contact administrator.');
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        toast.error('Error fetching profiles. Please contact administrator.');
+        setError('Error fetching profiles. Please contact administrator.');
+        await signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      // Find the profile that matches the logged-in user
+      const profile = profiles?.find(p => p.Eid === loginData.user.id);
+
+      if (!profile) {
+        // If not found by Eid, this user is not an employee/manager
+        toast.error('Employee profile not found. Please contact administrator.');
+        setError('Employee profile not found. Please contact administrator.');
         await signOut();
         setIsLoading(false);
         return;
